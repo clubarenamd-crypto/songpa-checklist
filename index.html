@@ -20,12 +20,12 @@
     min-height:100vh;
     padding:24px 12px 60px;
   }
-  .wrap{max-width:720px;margin:0 auto;}
+  .wrap{max-width:1200px;margin:0 auto;}
   .header{
     background:#fff;border-radius:16px;padding:24px;text-align:center;
     box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:20px;position:relative;
   }
-  .logo{font-size:28px;font-weight:800;color:var(--blue1);letter-spacing:1px;}
+  .logo{font-size:26px;font-weight:800;color:var(--blue1);letter-spacing:0;}
   .logo span{color:#f5a623;}
   .subtitle{color:#555;margin-top:6px;font-size:14px;}
   .admin-btn{
@@ -42,20 +42,23 @@
   .progress-date{font-size:13px;color:#888;}
   .progress-bar-bg{background:#eee;border-radius:10px;height:14px;overflow:hidden;}
   .progress-bar-fill{background:linear-gradient(90deg,#2563eb,#22c55e);height:100%;transition:width .4s;}
+  #itemList{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:16px;}
   .item{
-    background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:12px;
-    box-shadow:0 6px 18px rgba(0,0,0,.12);display:flex;align-items:flex-start;gap:14px;
+    background:#fff;border-radius:16px;padding:20px 18px 16px;margin-bottom:0;
+    box-shadow:0 6px 18px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:8px;
+    position:relative;border-top:4px solid var(--accent);transition:transform .2s,box-shadow .2s;
   }
-  .item.done{opacity:.6;}
-  .check-wrap{padding-top:2px;}
+  .item:hover{transform:translateY(-3px);box-shadow:0 12px 24px rgba(0,0,0,.18);}
+  .item.done{opacity:.7;border-top-color:#22c55e;}
+  .item .check-wrap{position:absolute;top:16px;right:16px;padding-top:0;}
   .check-wrap input{width:22px;height:22px;cursor:pointer;}
-  .item-body{flex:1;}
-  .item-title{font-weight:700;color:#222;margin-bottom:8px;font-size:15px;}
-  .fields{display:flex;flex-wrap:wrap;gap:10px;}
+  .item-body{flex:1;padding-right:30px;}
+  .item-title{font-weight:700;color:#222;margin-bottom:10px;font-size:16px;}
+  .fields{display:flex;flex-direction:column;flex-wrap:wrap;gap:8px;}
   .field{display:flex;align-items:center;gap:6px;font-size:13px;color:#555;}
   .field select,.field input{padding:4px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;}
   .field .value-text{padding:4px 8px;background:#f3f4f6;border-radius:8px;min-width:60px;display:inline-block;}
-  .item-actions{display:flex;flex-direction:column;gap:6px;}
+  .item-actions{display:flex;flex-direction:row;justify-content:flex-end;gap:6px;margin-top:4px;}
   .del-btn{background:#fee2e2;color:#b91c1c;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;}
   .add-item-btn{
     width:100%;padding:14px;border-radius:14px;border:2px dashed rgba(255,255,255,.6);
@@ -76,8 +79,8 @@
 <div class="wrap">
   <div class="header">
     <button class="admin-btn" id="adminBtn">관리자</button>
-    <div class="logo">GOLF <span>FRIEND</span></div>
-    <div class="subtitle">송파점 인원 개별 역할 분담 체크리스트</div>
+    <div class="logo">골프<span>프렌드</span></div>
+    <div class="subtitle">송파점 업무분담 체크리스트</div>
   </div>
 
   <div class="progress-card">
