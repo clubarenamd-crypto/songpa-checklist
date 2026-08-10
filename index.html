@@ -52,6 +52,9 @@
   .item.done{opacity:.7;border-top-color:#22c55e;}
   .item.dragging{opacity:.4;}
   .item.drag-over{outline:3px dashed var(--accent);outline-offset:2px;}
+  .drag-handle{position:absolute;top:14px;left:14px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:8px;color:#888;font-size:16px;cursor:grab;user-select:none;}
+  .drag-handle:active{cursor:grabbing;}
+  .item{padding-left:46px;}
   .item .check-wrap{position:absolute;top:16px;right:16px;padding-top:0;}
   .check-wrap input{width:22px;height:22px;cursor:pointer;}
   .item-body{flex:1;padding-right:30px;}
@@ -247,15 +250,20 @@ function render(){
     div.className = 'item' + (item.done ? ' done' : '');
 
     if(isAdmin){
-      div.draggable = true;
-      div.style.cursor = 'grab';
-      div.addEventListener('dragstart', function(e){
+      const dragHandle = document.createElement('div');
+      dragHandle.className = 'drag-handle';
+      dragHandle.textContent = '\u2261';
+      dragHandle.title = '\uB4dc\uB798\uadf8\ud574\uc11c \uc21c\uc11c \ubcc0\uacbd';
+      dragHandle.draggable = true;
+      dragHandle.addEventListener('dragstart', function(e){
         e.dataTransfer.setData('text/plain', String(idx));
         div.classList.add('dragging');
       });
-      div.addEventListener('dragend', function(){
+      dragHandle.addEventListener('dragend', function(){
         div.classList.remove('dragging');
       });
+      div.appendChild(dragHandle);
+
       div.addEventListener('dragover', function(e){
         e.preventDefault();
         div.classList.add('drag-over');
