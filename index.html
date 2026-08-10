@@ -244,10 +244,16 @@ function render(){
   percentText.textContent = percent + '%';
   progressFill.style.width = percent + '%';
 
+  const __oldRects = {};
+  itemListEl.querySelectorAll('.item').forEach(function(el){
+    if(el.dataset.itemId) __oldRects[el.dataset.itemId] = el.getBoundingClientRect();
+  });
+
   itemListEl.innerHTML = '';
   state.items.forEach(function(item, idx){
     const div = document.createElement('div');
     div.className = 'item' + (item.done ? ' done' : '');
+    div.dataset.itemId = item.id;
 
     if(isAdmin){
       const dragHandle = document.createElement('div');
@@ -389,6 +395,23 @@ function render(){
     }
 
     itemListEl.appendChild(div);
+  });
+
+  itemListEl.querySelectorAll('.item').forEach(function(el){
+    const id = el.dataset.itemId;
+    const oldRect = __oldRects[id];
+    if(!oldRect) return;
+    const newRect = el.getBoundingClientRect();
+    const dx = oldRect.left - newRect.left;
+    const dy = oldRect.top - newRect.top;
+    if(dx || dy){
+      el.style.transition = 'none';
+      el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      requestAnimationFrame(function(){
+        el.style.transition = 'transform 0.3s ease';
+        el.style.transform = '';
+      });
+    }
   });
 }
 
