@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>골프프렌드 송파점 업무분담 체크리스트</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --blue1:#1e3c72;
+    --blue2:#2a5298;
+    --accent:#2563eb;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI','Malgun Gothic',sans-serif;
+    background:linear-gradient(135deg,var(--blue1),var(--blue2));
+    min-height:100vh;
+    padding:24px 12px 60px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+  .header{
+    background:#fff;border-radius:16px;padding:24px;text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:20px;position:relative;
+  }
+  .logo{font-size:28px;font-weight:800;color:var(--blue1);letter-spacing:1px;}
+  .logo span{color:#f5a623;}
+  .subtitle{color:#555;margin-top:6px;font-size:14px;}
+  .admin-btn{
+    position:absolute;top:16px;right:16px;background:var(--accent);color:#fff;border:none;
+    border-radius:20px;padding:8px 14px;font-size:13px;cursor:pointer;
+  }
+  .admin-btn.active{background:#e11d48;}
+  .progress-card{
+    background:#fff;border-radius:16px;padding:20px 24px;margin-bottom:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.15);
+  }
+  .progress-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .progress-percent{font-size:32px;font-weight:800;color:var(--blue1);}
+  .progress-date{font-size:13px;color:#888;}
+  .progress-bar-bg{background:#eee;border-radius:10px;height:14px;overflow:hidden;}
+  .progress-bar-fill{background:linear-gradient(90deg,#2563eb,#22c55e);height:100%;transition:width .4s;}
+  .item{
+    background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,.12);display:flex;align-items:flex-start;gap:14px;
+  }
+  .item.done{opacity:.6;}
+  .check-wrap{padding-top:2px;}
+  .check-wrap input{width:22px;height:22px;cursor:pointer;}
+  .item-body{flex:1;}
+  .item-title{font-weight:700;color:#222;margin-bottom:8px;font-size:15px;}
+  .fields{display:flex;flex-wrap:wrap;gap:10px;}
+  .field{display:flex;align-items:center;gap:6px;font-size:13px;color:#555;}
+  .field select,.field input{padding:4px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;}
+  .field .value-text{padding:4px 8px;background:#f3f4f6;border-radius:8px;min-width:60px;display:inline-block;}
+  .item-actions{display:flex;flex-direction:column;gap:6px;}
+  .del-btn{background:#fee2e2;color:#b91c1c;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;}
+  .add-item-btn{
+    width:100%;padding:14px;border-radius:14px;border:2px dashed rgba(255,255,255,.6);
+    background:transparent;color:#fff;font-size:15px;cursor:pointer;margin-top:8px;
+  }
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50;}
+  .modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:320px;text-align:center;}
+  .modal input{width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin:14px 0;font-size:14px;}
+  .modal-buttons{display:flex;gap:10px;}
+  .modal-buttons button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-size:14px;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-secondary{background:#eee;color:#333;}
+  .hidden{display:none !important;}
+  .footer-note{text-align:center;color:rgba(255,255,255,.8);font-size:12px;margin-top:20px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <button class="admin-btn" id="adminBtn">관리자</button>
+    <div class="logo">GOLF <span>FRIEND</span></div>
+    <div class="subtitle">송파점 인원 개별 역할 분담 체크리스트</div>
+  </div>
+
+  <div class="progress-card">
+    <div class="progress-top">
+      <div class="progress-percent" id="percentText">0%</div>
+      <div class="progress-date" id="dateText"></div>
+    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div id="itemList"></div>
+
+  <button class="add-item-btn hidden" id="addItemBtn">+ 업무 항목 추가</button>
+
+  <div class="footer-note">매일 자정(한국시간) 자동으로 체크 상태가 초기화됩니다</div>
+</div>
+
+<div class="modal-bg hidden" id="adminModal">
+  <div class="modal">
+    <h3>관리자 로그인</h3>
+    <input type="password" id="adminPw" placeholder="관리자 비밀번호">
+    <div class="modal-buttons">
+      <button class="btn-secondary" id="adminCancel">취소</button>
+      <button class="btn-primary" id="adminConfirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBamcXYyvM6uA97bN1g4x5sHrCtaWbRgvM",
+  authDomain: "golf-friend-songpa.firebaseapp.com",
+  projectId: "golf-friend-songpa",
+  storageBucket: "golf-friend-songpa.firebasestorage.app",
+  messagingSenderId: "715360671320",
+  appId: "1:715360671320:web:197c822839433854f19c2d"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection('songpa_checklist').doc('main');
+
+const ADMIN_PASSWORD = '송파점';
+const EMPLOYEES = ['장근희','이준용','김송이','제갈지우','장은석'];
+
+function mkItem(id, title, labels){
+  return {id, title, fields: labels.map(function(l){return {label:l, value:''};}), done:false};
+}
+
+function defaultItems(){
+  return [
+    mkItem('fitting','피팅',['정','부']),
+    mkItem('logistics','물류 (확보・쇼핑몰・지점간 이동)',['정','부']),
+    mkItem('blog','블로그 (키워드 관리・상단노출 최신화)',['정','부']),
+    mkItem('phone','전화 안내',['정','부']),
+    mkItem('clean_toilet','마감 청소 - 화장실',['정','부']),
+    mkItem('clean_b1','마감 청소 - 지하 1층',['정','부']),
+    mkItem('clean_1f','마감 청소 - 1층',['정','부']),
+    mkItem('clean_dust','마감 청소 - 화요일・금요일 먼지 청소',['정','부']),
+    mkItem('order_club','재고 확보 및 발주 (19:00~20:00) - 클럽 발주',['담당']),
+    mkItem('order_goods','재고 확보 및 발주 (19:00~20:00) - 용품 발주',['담당']),
+    mkItem('ecount','이카운트 / 구글 마감',['정','부']),
+    mkItem('hq','기타 본사 업무 및 수습 인원 교육',['정','부']),
+    mkItem('inventory','월말 재고 조사',['정','부'])
+  ];
+}
+
+function todayKST(){
+  return new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Seoul'});
+}
+
+let state = null;
+let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
+
+const itemListEl = document.getElementById('itemList');
+const percentText = document.getElementById('percentText');
+const progressFill = document.getElementById('progressFill');
+const dateText = document.getElementById('dateText');
+const adminBtn = document.getElementById('adminBtn');
+const addItemBtn = document.getElementById('addItemBtn');
+const adminModal = document.getElementById('adminModal');
+const adminPw = document.getElementById('adminPw');
+
+function updateAdminUI(){
+  adminBtn.textContent = isAdmin ? '관리자 모드 종료' : '관리자';
+  adminBtn.classList.toggle('active', isAdmin);
+  addItemBtn.classList.toggle('hidden', !isAdmin);
+  render();
+}
+
+adminBtn.addEventListener('click', function(){
+  if(isAdmin){
+    isAdmin = false;
+    sessionStorage.removeItem('isAdmin');
+    updateAdminUI();
+  } else {
+    adminPw.value='';
+    adminModal.classList.remove('hidden');
+    adminPw.focus();
+  }
+});
+
+document.getElementById('adminCancel').addEventListener('click', function(){
+  adminModal.classList.add('hidden');
+});
+
+document.getElementById('adminConfirm').addEventListener('click', tryAdminLogin);
+adminPw.addEventListener('keydown', function(e){ if(e.key==='Enter') tryAdminLogin(); });
+
+function tryAdminLogin(){
+  if(adminPw.value === ADMIN_PASSWORD){
+    isAdmin = true;
+    sessionStorage.setItem('isAdmin','true');
+    adminModal.classList.add('hidden');
+    updateAdminUI();
+  } else {
+    alert('비밀번호가 올바르지 않습니다.');
+  }
+}
+
+addItemBtn.addEventListener('click', function(){
+  const title = prompt('추가할 업무 이름을 입력하세요');
+  if(!title) return;
+  const useSingle = confirm('담당자가 1명인 업무인가요?\n확인=1명 담당 / 취소=정,부 2명');
+  const labels = useSingle ? ['담당'] : ['정','부'];
+  const newItem = mkItem('item_'+Date.now(), title, labels);
+  const items = state.items.concat([newItem]);
+  docRef.update({items: items});
+});
+
+function ensureDoc(){
+  return docRef.get().then(function(snap){
+    if(!snap.exists){
+      return docRef.set({items: defaultItems(), resetDate: todayKST()});
+    }
+  });
+}
+
+function checkDailyReset(data){
+  const today = todayKST();
+  if(data.resetDate !== today){
+    const resetItems = data.items.map(function(it){
+      const copy = Object.assign({}, it);
+      copy.done = false;
+      return copy;
+    });
+    return docRef.update({items: resetItems, resetDate: today});
+  }
+}
+
+function render(){
+  if(!state) return;
+  dateText.textContent = state.resetDate + ' 기준';
+  const total = state.items.length;
+  const doneCount = state.items.filter(function(i){return i.done;}).length;
+  const percent = total===0 ? 0 : Math.round((doneCount/total)*100);
+  percentText.textContent = percent + '%';
+  progressFill.style.width = percent + '%';
+
+  itemListEl.innerHTML = '';
+  state.items.forEach(function(item, idx){
+    const div = document.createElement('div');
+    div.className = 'item' + (item.done ? ' done' : '');
+
+    const checkWrap = document.createElement('div');
+    checkWrap.className = 'check-wrap';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = item.done;
+    checkbox.addEventListener('change', function(){
+      const items = state.items.map(function(it,i){
+        if(i!==idx) return it;
+        const copy = Object.assign({}, it);
+        copy.done = checkbox.checked;
+        return copy;
+      });
+      docRef.update({items: items});
+    });
+    checkWrap.appendChild(checkbox);
+
+    const body = document.createElement('div');
+    body.className = 'item-body';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'item-title';
+    if(isAdmin){
+      const titleInput = document.createElement('input');
+      titleInput.value = item.title;
+      titleInput.style.cssText='font-weight:700;border:1px solid #ddd;border-radius:8px;padding:4px 8px;width:100%;';
+      titleInput.addEventListener('change', function(){
+        const items = state.items.map(function(it,i){
+          if(i!==idx) return it;
+          const copy = Object.assign({}, it);
+          copy.title = titleInput.value;
+          return copy;
+        });
+        docRef.update({items: items});
+      });
+      titleEl.appendChild(titleInput);
+    } else {
+      titleEl.textContent = item.title;
+    }
+    body.appendChild(titleEl);
+
+    const fieldsEl = document.createElement('div');
+    fieldsEl.className = 'fields';
+    item.fields.forEach(function(f, fIdx){
+      const fieldEl = document.createElement('div');
+      fieldEl.className = 'field';
+      const label = document.createElement('span');
+      label.textContent = f.label + ':';
+      fieldEl.appendChild(label);
+
+      if(isAdmin){
+        const select = document.createElement('select');
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value=''; emptyOpt.textContent='-';
+        select.appendChild(emptyOpt);
+        EMPLOYEES.forEach(function(name){
+          const opt = document.createElement('option');
+          opt.value=name; opt.textContent=name;
+          if(f.value===name) opt.selected=true;
+          select.appendChild(opt);
+        });
+        select.addEventListener('change', function(){
+          const items = state.items.map(function(it,i){
+            if(i!==idx) return it;
+            const fields = it.fields.map(function(ff,fi){
+              if(fi!==fIdx) return ff;
+              const c = Object.assign({}, ff);
+              c.value = select.value;
+              return c;
+            });
+            const copy = Object.assign({}, it);
+            copy.fields = fields;
+            return copy;
+          });
+          docRef.update({items: items});
+        });
+        fieldEl.appendChild(select);
+      } else {
+        const valEl = document.createElement('span');
+        valEl.className='value-text';
+        valEl.textContent = f.value || '-';
+        fieldEl.appendChild(valEl);
+      }
+      fieldsEl.appendChild(fieldEl);
+    });
+    body.appendChild(fieldsEl);
+
+    div.appendChild(checkWrap);
+    div.appendChild(body);
+
+    if(isAdmin){
+      const actions = document.createElement('div');
+      actions.className='item-actions';
+      const delBtn = document.createElement('button');
+      delBtn.className='del-btn';
+      delBtn.textContent='삭제';
+      delBtn.addEventListener('click', function(){
+        if(!confirm('이 항목을 삭제할까요?')) return;
+        const items = state.items.filter(function(it,i){return i!==idx;});
+        docRef.update({items: items});
+      });
+      actions.appendChild(delBtn);
+      div.appendChild(actions);
+    }
+
+    itemListEl.appendChild(div);
+  });
+}
+
+ensureDoc().then(function(){
+  docRef.onSnapshot(function(snap){
+    if(!snap.exists) return;
+    const data = snap.data();
+    state = data;
+    checkDailyReset(data);
+    render();
+  });
+  updateAdminUI();
+});
+
+setInterval(function(){
+  docRef.get().then(function(snap){
+    if(snap.exists) checkDailyReset(snap.data());
+  });
+}, 60000);
+</script>
+</body>
+</html>
