@@ -90,14 +90,15 @@
   .employee-chip-list{display:flex;flex-wrap:wrap;gap:8px;}
   .employee-chip{background:#eef2ff;color:var(--blue1);border:none;border-radius:20px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600;}
   .employee-chip:hover{background:#dbe4ff;}
-  .employee-tasks-modal{max-width:380px;text-align:left;}
+  .employee-tasks-modal{max-width:520px;text-align:left;}
   .employee-tasks-modal h3{text-align:center;margin-top:0;}
-  #employeeTasksList{max-height:320px;overflow-y:auto;margin:14px 0;}
-  .emp-task-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #eee;font-size:14px;}
-  .emp-task-row .task-title{color:#222;}
-  .emp-task-row.done .task-title{text-decoration:line-through;color:#999;}
-  .emp-task-row .task-role{font-size:12px;color:#2563eb;background:#eef2ff;padding:3px 8px;border-radius:8px;white-space:nowrap;}
-  .emp-task-empty{padding:20px 4px;color:#888;font-size:14px;text-align:center;}
+  #employeeTasksList{max-height:420px;overflow-y:auto;margin:14px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+  .emp-task-card{background:#f8f9fc;border-radius:12px;padding:14px 14px 12px;border-top:4px solid var(--accent);box-shadow:0 4px 12px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:8px;}
+  .emp-task-card.done{opacity:.65;border-top-color:#22c55e;}
+  .emp-task-card .task-title{color:#222;font-weight:600;font-size:14px;line-height:1.4;}
+  .emp-task-card.done .task-title{text-decoration:line-through;color:#999;}
+  .emp-task-card .task-role{align-self:flex-start;font-size:12px;color:#2563eb;background:#eef2ff;padding:3px 8px;border-radius:8px;white-space:nowrap;}
+  .emp-task-empty{padding:20px 4px;color:#888;font-size:14px;text-align:center;grid-column:1/-1;}
 </style>
 </head>
 <body>
@@ -374,7 +375,7 @@ function showEmployeeTasks(name){
         .map(function(f){ return f.label; })
         .join(', ');
       const row = document.createElement('div');
-      row.className = 'emp-task-row' + (it.done ? ' done' : '');
+      row.className = 'emp-task-card' + (it.done ? ' done' : '');
       const titleSpan = document.createElement('span');
       titleSpan.className = 'task-title';
       titleSpan.textContent = it.title;
