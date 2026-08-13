@@ -182,20 +182,38 @@ function mkItem(id, title, labels){
 
 function defaultItems(){
   return [
-    mkItem('fitting','피팅',['정','부']),
-    mkItem('logistics','물류 (확보・쇼핑몰・지점간 이동)',['정','부']),
-    mkItem('blog','블로그 (키워드 관리・상단노출 최신화)',['정','부']),
-    mkItem('phone','전화 안내',['정','부']),
-    mkItem('clean_toilet','마감 청소 - 화장실',['정','부']),
-    mkItem('clean_b1','마감 청소 - 지하 1층',['정','부']),
-    mkItem('clean_1f','마감 청소 - 1층',['정','부']),
-    mkItem('clean_dust','마감 청소 - 화요일・금요일 먼지 청소',['정','부']),
-    mkItem('order_club','재고 확보 및 발주 (19:00~20:00) - 클럽 발주',['정','부']),
-    mkItem('order_goods','재고 확보 및 발주 (19:00~20:00) - 용품 발주',['정','부']),
-    mkItem('ecount','이카운트 / 구글 마감',['정','부']),
-    mkItem('hq','기타 본사 업무 및 수습 인원 교육',['정','부']),
-    mkItem('inventory','월말 재고 조사',['정','부'])
+    mkItem('fitting','피팅',['정','부1','부2']),
+    mkItem('logistics','물류 (확보・쇼핑몰・지점간 이동)',['정','부1','부2']),
+    mkItem('blog','블로그 (키워드 관리・상단노출 최신화)',['정','부1','부2']),
+    mkItem('phone','전화 안내',['정','부1','부2']),
+    mkItem('clean_toilet','마감 청소 - 화장실',['정','부1','부2']),
+    mkItem('clean_b1','마감 청소 - 지하 1층',['정','부1','부2']),
+    mkItem('clean_1f','마감 청소 - 1층',['정','부1','부2']),
+    mkItem('clean_dust','마감 청소 - 화요일・금요일 먼지 청소',['정','부1','부2']),
+    mkItem('order_club','재고 확보 및 발주 (19:00~20:00) - 클럽 발주',['정','부1','부2']),
+    mkItem('order_goods','재고 확보 및 발주 (19:00~20:00) - 용품 발주',['정','부1','부2']),
+    mkItem('ecount','이카운트 / 구글 마감',['정','부1','부2']),
+    mkItem('hq','기타 본사 업무 및 수습 인원 교육',['정','부1','부2']),
+    mkItem('inventory','월말 재고 조사',['정','부1','부2'])
   ];
+}
+
+function migrateTwoPersonFields(items){
+  let changed = false;
+  const migrated = items.map(function(it){
+    if(it.fields.length === 2 && it.fields[0].label === '정' && it.fields[1].label === '부'){
+      changed = true;
+      return Object.assign({}, it, {
+        fields: [
+          {label:'정', value: it.fields[0].value},
+          {label:'부1', value: it.fields[1].value},
+          {label:'부2', value: ''}
+        ]
+      });
+    }
+    return it;
+  });
+  return {changed: changed, items: migrated};
 }
 
 function todayKST(){
@@ -340,8 +358,8 @@ document.getElementById('pwConfirm').addEventListener('click', function(){
 addItemBtn.addEventListener('click', function(){
   const title = prompt('추가할 업무 이름을 입력하세요');
   if(!title) return;
-  const useSingle = confirm('담당자가 1명인 업무인가요?\n확인=1명 담당 / 취소=정,부 2명');
-  const labels = useSingle ? ['담당'] : ['정','부'];
+  const useSingle = confirm('담당자가 1명인 업무인가요?\n확인=1명 담당 / 취소=정,부1,부2 3명');
+  const labels = useSingle ? ['담당'] : ['정','부1','부2'];
   const newItem = mkItem('item_'+Date.now(), title, labels);
   const items = state.items.concat([newItem]);
   docRef.update({items: items});
@@ -361,6 +379,10 @@ function ensureDoc(){
     const patch = {};
     if(typeof data.adminPassword !== 'string') patch.adminPassword = DEFAULT_ADMIN_PASSWORD;
     if(!Array.isArray(data.employees)) patch.employees = DEFAULT_EMPLOYEES.slice();
+    if(Array.isArray(data.items)){
+      const migration = migrateTwoPersonFields(data.items);
+      if(migration.changed) patch.items = migration.items;
+    }
     if(Object.keys(patch).length) return docRef.update(patch);
   });
 }
