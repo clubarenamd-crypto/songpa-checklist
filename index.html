@@ -85,6 +85,19 @@
   .emp-add-row{display:flex;gap:8px;margin:14px 0;}
   .emp-add-row input{flex:1;margin:0;}
   .emp-add-row button{flex:none;padding:0 16px;border-radius:8px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-size:14px;}
+  .employee-filter-card{background:#fff;border-radius:16px;padding:18px 20px;margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,.15);}
+  .employee-filter-title{font-weight:700;color:#222;margin-bottom:12px;font-size:14px;}
+  .employee-chip-list{display:flex;flex-wrap:wrap;gap:8px;}
+  .employee-chip{background:#eef2ff;color:var(--blue1);border:none;border-radius:20px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600;}
+  .employee-chip:hover{background:#dbe4ff;}
+  .employee-tasks-modal{max-width:380px;text-align:left;}
+  .employee-tasks-modal h3{text-align:center;margin-top:0;}
+  #employeeTasksList{max-height:320px;overflow-y:auto;margin:14px 0;}
+  .emp-task-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #eee;font-size:14px;}
+  .emp-task-row .task-title{color:#222;}
+  .emp-task-row.done .task-title{text-decoration:line-through;color:#999;}
+  .emp-task-row .task-role{font-size:12px;color:#2563eb;background:#eef2ff;padding:3px 8px;border-radius:8px;white-space:nowrap;}
+  .emp-task-empty{padding:20px 4px;color:#888;font-size:14px;text-align:center;}
 </style>
 </head>
 <body>
@@ -101,6 +114,11 @@
       <div class="progress-date" id="dateText"></div>
     </div>
     <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="employee-filter-card">
+    <div class="employee-filter-title">담당자별 업무 보기</div>
+    <div class="employee-chip-list" id="employeeChipList"></div>
   </div>
 
   <div id="itemList"></div>
@@ -149,6 +167,16 @@
     <div class="modal-buttons">
       <button class="btn-secondary" id="pwCancel">취소</button>
       <button class="btn-primary" id="pwConfirm">변경</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg hidden" id="employeeTasksModal">
+  <div class="modal employee-tasks-modal">
+    <h3 id="employeeTasksTitle">담당 업무</h3>
+    <div id="employeeTasksList"></div>
+    <div class="modal-buttons">
+      <button class="btn-secondary" id="employeeTasksClose">닫기</button>
     </div>
   </div>
 </div>
@@ -241,6 +269,10 @@ const pwModal = document.getElementById('pwModal');
 const pwCurrent = document.getElementById('pwCurrent');
 const pwNew = document.getElementById('pwNew');
 const pwNewConfirm = document.getElementById('pwNewConfirm');
+const employeeChipList = document.getElementById('employeeChipList');
+const employeeTasksModal = document.getElementById('employeeTasksModal');
+const employeeTasksTitle = document.getElementById('employeeTasksTitle');
+const employeeTasksList = document.getElementById('employeeTasksList');
 
 function updateAdminUI(){
   adminBtn.textContent = isAdmin ? '관리자 모드 종료' : '관리자';
@@ -308,6 +340,57 @@ manageEmployeesBtn.addEventListener('click', function(){
 
 document.getElementById('employeeModalClose').addEventListener('click', function(){
   employeeModal.classList.add('hidden');
+});
+
+function renderEmployeeChips(){
+  employeeChipList.innerHTML = '';
+  getEmployees().forEach(function(name){
+    const chip = document.createElement('button');
+    chip.className = 'employee-chip';
+    chip.textContent = name;
+    chip.addEventListener('click', function(){
+      showEmployeeTasks(name);
+    });
+    employeeChipList.appendChild(chip);
+  });
+}
+
+function showEmployeeTasks(name){
+  if(!state) return;
+  employeeTasksTitle.textContent = name + '님의 담당 업무';
+  employeeTasksList.innerHTML = '';
+  const matched = state.items.filter(function(it){
+    return it.fields.some(function(f){ return f.value === name; });
+  });
+  if(matched.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'emp-task-empty';
+    empty.textContent = '담당하고 있는 업무가 없습니다.';
+    employeeTasksList.appendChild(empty);
+  } else {
+    matched.forEach(function(it){
+      const roles = it.fields
+        .filter(function(f){ return f.value === name; })
+        .map(function(f){ return f.label; })
+        .join(', ');
+      const row = document.createElement('div');
+      row.className = 'emp-task-row' + (it.done ? ' done' : '');
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'task-title';
+      titleSpan.textContent = it.title;
+      const roleSpan = document.createElement('span');
+      roleSpan.className = 'task-role';
+      roleSpan.textContent = roles;
+      row.appendChild(titleSpan);
+      row.appendChild(roleSpan);
+      employeeTasksList.appendChild(row);
+    });
+  }
+  employeeTasksModal.classList.remove('hidden');
+}
+
+document.getElementById('employeeTasksClose').addEventListener('click', function(){
+  employeeTasksModal.classList.add('hidden');
 });
 
 addEmployeeBtn.addEventListener('click', function(){
@@ -401,6 +484,7 @@ function checkDailyReset(data){
 
 function render(){
   if(!state) return;
+  renderEmployeeChips();
   dateText.textContent = state.resetDate + ' 기준';
   const total = state.items.length;
   const doneCount = state.items.filter(function(i){return i.done;}).length;
