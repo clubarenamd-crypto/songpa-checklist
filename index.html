@@ -90,6 +90,7 @@
   .employee-chip-list{display:flex;flex-wrap:wrap;gap:8px;}
   .employee-chip{background:#eef2ff;color:var(--blue1);border:none;border-radius:20px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600;}
   .employee-chip:hover{background:#dbe4ff;}
+  .employee-chip.active{background:var(--accent);color:#fff;}
   .employee-tasks-modal{max-width:520px;text-align:left;}
   .employee-tasks-modal h3{text-align:center;margin-top:0;}
   #employeeTasksList{max-height:420px;overflow-y:auto;margin:14px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
@@ -251,6 +252,7 @@ function todayKST(){
 
 let state = null;
 let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
+let employeeFilter = null;
 
 const itemListEl = document.getElementById('itemList');
 const percentText = document.getElementById('percentText');
@@ -345,12 +347,22 @@ document.getElementById('employeeModalClose').addEventListener('click', function
 
 function renderEmployeeChips(){
   employeeChipList.innerHTML = '';
+  const allChip = document.createElement('button');
+  allChip.className = 'employee-chip' + (employeeFilter ? '' : ' active');
+  allChip.textContent = '전체';
+  allChip.addEventListener('click', function(){
+    if(employeeFilter === null) return;
+    employeeFilter = null;
+    render();
+  });
+  employeeChipList.appendChild(allChip);
   getEmployees().forEach(function(name){
     const chip = document.createElement('button');
-    chip.className = 'employee-chip';
+    chip.className = 'employee-chip' + (employeeFilter === name ? ' active' : '');
     chip.textContent = name;
     chip.addEventListener('click', function(){
-      showEmployeeTasks(name);
+      employeeFilter = (employeeFilter === name) ? null : name;
+      render();
     });
     employeeChipList.appendChild(chip);
   });
@@ -499,12 +511,15 @@ function render(){
   });
 
   itemListEl.innerHTML = '';
+  let __visibleCount = 0;
   state.items.forEach(function(item, idx){
+    if(employeeFilter && !item.fields.some(function(f){ return f.value === employeeFilter; })) return;
+    __visibleCount++;
     const div = document.createElement('div');
     div.className = 'item' + (item.done ? ' done' : '');
     div.dataset.itemId = item.id;
 
-    if(isAdmin){
+    if(isAdmin && !employeeFilter){
       const dragHandle = document.createElement('div');
       dragHandle.className = 'drag-handle';
       dragHandle.textContent = '\u2261';
@@ -645,6 +660,14 @@ function render(){
 
     itemListEl.appendChild(div);
   });
+
+  if(employeeFilter && __visibleCount === 0){
+    const empty = document.createElement('div');
+    empty.className = 'item';
+    empty.style.cssText = 'align-items:center;justify-content:center;text-align:center;color:#888;';
+    empty.textContent = employeeFilter + '님이 담당하고 있는 업무가 없습니다.';
+    itemListEl.appendChild(empty);
+  }
 
   itemListEl.querySelectorAll('.item').forEach(function(el){
     const id = el.dataset.itemId;
