@@ -25,9 +25,9 @@
     background:#fff;border-radius:16px;padding:24px;text-align:center;
     box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:20px;position:relative;
   }
-  .logo{font-size:26px;font-weight:800;color:var(--blue1);letter-spacing:0;}
-  .logo span{color:#f5a623;}
-  .subtitle{color:#555;margin-top:6px;font-size:14px;}
+  .logo{font-size:32px;font-weight:800;color:var(--blue1);letter-spacing:0;}
+  .logo span{color:var(--blue1);}
+  .subtitle{color:#555;margin-top:6px;font-size:17px;}
   .admin-btn{
     position:absolute;top:16px;right:16px;background:var(--accent);color:#fff;border:none;
     border-radius:20px;padding:8px 14px;font-size:13px;cursor:pointer;
@@ -100,14 +100,37 @@
   .emp-task-card.done .task-title{text-decoration:line-through;color:#999;}
   .emp-task-card .task-role{align-self:flex-start;font-size:12px;color:#2563eb;background:#eef2ff;padding:3px 8px;border-radius:8px;white-space:nowrap;}
   .emp-task-empty{padding:20px 4px;color:#888;font-size:14px;text-align:center;grid-column:1/-1;}
+  .handover-card{background:#fff;border-radius:16px;padding:18px 20px;margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,.15);}
+  .handover-title{font-weight:700;color:#222;margin-bottom:12px;font-size:14px;}
+  .handover-add-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+  .handover-add-row select{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;}
+  .handover-add-row textarea{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;min-height:60px;resize:vertical;font-family:inherit;}
+  .handover-add-row button{align-self:flex-end;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
+  .handover-list{display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto;}
+  .handover-item{background:#f8f9fc;border-radius:10px;padding:10px 46px 10px 12px;border-left:4px solid var(--accent);position:relative;}
+  .handover-meta{display:flex;gap:8px;align-items:baseline;font-size:12px;color:#888;margin-bottom:4px;}
+  .handover-author{font-weight:700;color:var(--blue1);}
+  .handover-text{font-size:14px;color:#222;white-space:pre-wrap;word-break:break-word;}
+  .handover-del{position:absolute;top:10px;right:10px;background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
+  .handover-empty{color:#888;font-size:13px;text-align:center;padding:12px;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="header">
     <button class="admin-btn" id="adminBtn">관리자</button>
-    <div class="logo">골프<span>프렌드</span></div>
-    <div class="subtitle">송파점 업무분담 체크리스트</div>
+    <div class="logo">골프<span>프렌드</span> 송파점</div>
+    <div class="subtitle">업무분담 체크리스트</div>
+  </div>
+
+  <div class="handover-card">
+    <div class="handover-title">인수인계 사항</div>
+    <div class="handover-add-row">
+      <select id="handoverAuthor"></select>
+      <textarea id="handoverText" placeholder="인수인계 내용을 입력하세요"></textarea>
+      <button id="handoverAddBtn">등록</button>
+    </div>
+    <div class="handover-list" id="handoverList"></div>
   </div>
 
   <div class="progress-card">
@@ -205,6 +228,17 @@ function getAdminPassword(){
 function getEmployees(){
   return (state && Array.isArray(state.employees)) ? state.employees : DEFAULT_EMPLOYEES;
 }
+function getHandoverNotes(){
+  return (state && Array.isArray(state.handoverNotes)) ? state.handoverNotes : [];
+}
+function formatHandoverTime(iso){
+  try{
+    const d = new Date(iso);
+    return d.toLocaleString('ko-KR', {timeZone:'Asia/Seoul', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+  }catch(e){
+    return '';
+  }
+}
 
 function mkItem(id, title, labels){
   return {id, title, fields: labels.map(function(l){return {label:l, value:''};}), done:false};
@@ -282,6 +316,82 @@ const employeeChipList = document.getElementById('employeeChipList');
 const employeeTasksModal = document.getElementById('employeeTasksModal');
 const employeeTasksTitle = document.getElementById('employeeTasksTitle');
 const employeeTasksList = document.getElementById('employeeTasksList');
+const handoverAuthor = document.getElementById('handoverAuthor');
+const handoverText = document.getElementById('handoverText');
+const handoverAddBtn = document.getElementById('handoverAddBtn');
+const handoverList = document.getElementById('handoverList');
+
+function renderHandoverNotes(){
+  const prevAuthor = handoverAuthor.value;
+  handoverAuthor.innerHTML = '';
+  getEmployees().forEach(function(name){
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    handoverAuthor.appendChild(opt);
+  });
+  if(getEmployees().indexOf(prevAuthor) !== -1) handoverAuthor.value = prevAuthor;
+
+  handoverList.innerHTML = '';
+  const notes = getHandoverNotes();
+  if(notes.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'handover-empty';
+    empty.textContent = '등록된 인수인계 사항이 없습니다.';
+    handoverList.appendChild(empty);
+    return;
+  }
+  notes.forEach(function(note){
+    const item = document.createElement('div');
+    item.className = 'handover-item';
+
+    const meta = document.createElement('div');
+    meta.className = 'handover-meta';
+    const authorEl = document.createElement('span');
+    authorEl.className = 'handover-author';
+    authorEl.textContent = note.author || '';
+    const timeEl = document.createElement('span');
+    timeEl.textContent = formatHandoverTime(note.createdAt);
+    meta.appendChild(authorEl);
+    meta.appendChild(timeEl);
+
+    const textEl = document.createElement('div');
+    textEl.className = 'handover-text';
+    textEl.textContent = note.text;
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'handover-del';
+    delBtn.textContent = '삭제';
+    delBtn.addEventListener('click', function(){
+      if(!confirm('이 인수인계 사항을 삭제할까요?')) return;
+      const remaining = getHandoverNotes().filter(function(n){ return n.id !== note.id; });
+      docRef.update({handoverNotes: remaining});
+    });
+
+    item.appendChild(meta);
+    item.appendChild(textEl);
+    item.appendChild(delBtn);
+    handoverList.appendChild(item);
+  });
+}
+
+handoverAddBtn.addEventListener('click', function(){
+  const text = handoverText.value.trim();
+  if(!text){
+    alert('인수인계 내용을 입력해주세요.');
+    return;
+  }
+  const newNote = {
+    id: 'h_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    author: handoverAuthor.value,
+    text: text,
+    createdAt: new Date().toISOString()
+  };
+  const notes = [newNote].concat(getHandoverNotes());
+  docRef.update({handoverNotes: notes}).then(function(){
+    handoverText.value = '';
+  });
+});
 
 function updateAdminUI(){
   adminBtn.textContent = isAdmin ? '관리자 모드 종료' : '관리자';
@@ -474,13 +584,15 @@ function ensureDoc(){
         items: defaultItems(),
         resetDate: todayKST(),
         adminPassword: DEFAULT_ADMIN_PASSWORD,
-        employees: DEFAULT_EMPLOYEES.slice()
+        employees: DEFAULT_EMPLOYEES.slice(),
+        handoverNotes: []
       });
     }
     const data = snap.data();
     const patch = {};
     if(typeof data.adminPassword !== 'string') patch.adminPassword = DEFAULT_ADMIN_PASSWORD;
     if(!Array.isArray(data.employees)) patch.employees = DEFAULT_EMPLOYEES.slice();
+    if(!Array.isArray(data.handoverNotes)) patch.handoverNotes = [];
     if(Array.isArray(data.items)){
       const migration = migrateTwoPersonFields(data.items);
       if(migration.changed) patch.items = migration.items;
@@ -504,6 +616,7 @@ function checkDailyReset(data){
 function render(){
   if(!state) return;
   renderEmployeeChips();
+  renderHandoverNotes();
   dateText.textContent = state.resetDate + ' 기준';
   const total = state.items.length;
   const doneCount = state.items.filter(function(i){return i.done;}).length;
