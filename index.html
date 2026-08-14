@@ -247,7 +247,13 @@ function migrateTwoPersonFields(items){
 }
 
 function todayKST(){
-  return new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Seoul'});
+  const kstMs = Date.now() + 9*60*60*1000;
+  const shiftedMs = kstMs - 11*60*60*1000;
+  const d = new Date(shiftedMs);
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+  const dd = String(d.getUTCDate()).padStart(2,'0');
+  return yyyy + '-' + mm + '-' + dd;
 }
 
 let state = null;
