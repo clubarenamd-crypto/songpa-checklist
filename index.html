@@ -101,12 +101,15 @@
   .emp-task-card .task-role{align-self:flex-start;font-size:12px;color:#2563eb;background:#eef2ff;padding:3px 8px;border-radius:8px;white-space:nowrap;}
   .emp-task-empty{padding:20px 4px;color:#888;font-size:14px;text-align:center;grid-column:1/-1;}
   .handover-card{background:#fff;border-radius:16px;padding:18px 20px;margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,.15);}
-  .handover-title{font-weight:700;color:#222;margin-bottom:12px;font-size:14px;}
+  .handover-title{font-weight:700;color:#222;margin-bottom:12px;font-size:14px;display:flex;align-items:center;gap:8px;}
+  .handover-title-count{background:#f59e0b;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:10px;}
   .handover-add-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
   .handover-add-row textarea{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;min-height:60px;resize:vertical;font-family:inherit;}
   .handover-add-row button{align-self:flex-end;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
   .handover-list{display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto;}
   .handover-item{background:#f8f9fc;border-radius:10px;padding:10px 46px 10px 12px;border-left:4px solid var(--accent);position:relative;}
+  .handover-item.new{border-left-color:#f59e0b;background:#fffbeb;}
+  .handover-new-tag{background:#f59e0b;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;}
   .handover-meta{display:flex;gap:8px;align-items:baseline;font-size:12px;color:#888;margin-bottom:4px;}
   .handover-text{font-size:14px;color:#222;white-space:pre-wrap;word-break:break-word;}
   .handover-del{position:absolute;top:10px;right:10px;background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
@@ -122,7 +125,7 @@
   </div>
 
   <div class="handover-card">
-    <div class="handover-title">인수인계 사항</div>
+    <div class="handover-title" id="handoverTitle">인수인계 사항</div>
     <div class="handover-add-row">
       <textarea id="handoverText" placeholder="인수인계 내용을 입력하세요"></textarea>
       <button id="handoverAddBtn">등록</button>
@@ -290,6 +293,14 @@ function todayKST(){
 let state = null;
 let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 let employeeFilter = null;
+const HANDOVER_SEEN_KEY = 'handoverLastSeenAt';
+let handoverSessionLastSeen = null;
+try{
+  handoverSessionLastSeen = localStorage.getItem(HANDOVER_SEEN_KEY);
+  localStorage.setItem(HANDOVER_SEEN_KEY, new Date().toISOString());
+}catch(e){
+  handoverSessionLastSeen = null;
+}
 
 const itemListEl = document.getElementById('itemList');
 const percentText = document.getElementById('percentText');
@@ -316,10 +327,26 @@ const employeeTasksList = document.getElementById('employeeTasksList');
 const handoverText = document.getElementById('handoverText');
 const handoverAddBtn = document.getElementById('handoverAddBtn');
 const handoverList = document.getElementById('handoverList');
+const handoverTitle = document.getElementById('handoverTitle');
 
 function renderHandoverNotes(){
   handoverList.innerHTML = '';
   const notes = getHandoverNotes();
+
+  const newCount = handoverSessionLastSeen
+    ? notes.filter(function(n){ return n.createdAt > handoverSessionLastSeen; }).length
+    : 0;
+  handoverTitle.innerHTML = '';
+  const titleText = document.createElement('span');
+  titleText.textContent = '인수인계 사항';
+  handoverTitle.appendChild(titleText);
+  if(newCount > 0){
+    const countBadge = document.createElement('span');
+    countBadge.className = 'handover-title-count';
+    countBadge.textContent = '새 글 ' + newCount + '개';
+    handoverTitle.appendChild(countBadge);
+  }
+
   if(notes.length === 0){
     const empty = document.createElement('div');
     empty.className = 'handover-empty';
@@ -328,14 +355,21 @@ function renderHandoverNotes(){
     return;
   }
   notes.forEach(function(note){
+    const isNew = handoverSessionLastSeen && note.createdAt > handoverSessionLastSeen;
     const item = document.createElement('div');
-    item.className = 'handover-item';
+    item.className = 'handover-item' + (isNew ? ' new' : '');
 
     const meta = document.createElement('div');
     meta.className = 'handover-meta';
     const timeEl = document.createElement('span');
     timeEl.textContent = formatHandoverTime(note.createdAt);
     meta.appendChild(timeEl);
+    if(isNew){
+      const newTag = document.createElement('span');
+      newTag.className = 'handover-new-tag';
+      newTag.textContent = 'NEW';
+      meta.appendChild(newTag);
+    }
 
     const textEl = document.createElement('div');
     textEl.className = 'handover-text';
