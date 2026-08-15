@@ -103,13 +103,11 @@
   .handover-card{background:#fff;border-radius:16px;padding:18px 20px;margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,.15);}
   .handover-title{font-weight:700;color:#222;margin-bottom:12px;font-size:14px;}
   .handover-add-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
-  .handover-add-row select{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;}
   .handover-add-row textarea{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;min-height:60px;resize:vertical;font-family:inherit;}
   .handover-add-row button{align-self:flex-end;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
   .handover-list{display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto;}
   .handover-item{background:#f8f9fc;border-radius:10px;padding:10px 46px 10px 12px;border-left:4px solid var(--accent);position:relative;}
   .handover-meta{display:flex;gap:8px;align-items:baseline;font-size:12px;color:#888;margin-bottom:4px;}
-  .handover-author{font-weight:700;color:var(--blue1);}
   .handover-text{font-size:14px;color:#222;white-space:pre-wrap;word-break:break-word;}
   .handover-del{position:absolute;top:10px;right:10px;background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
   .handover-empty{color:#888;font-size:13px;text-align:center;padding:12px;}
@@ -126,7 +124,6 @@
   <div class="handover-card">
     <div class="handover-title">인수인계 사항</div>
     <div class="handover-add-row">
-      <select id="handoverAuthor"></select>
       <textarea id="handoverText" placeholder="인수인계 내용을 입력하세요"></textarea>
       <button id="handoverAddBtn">등록</button>
     </div>
@@ -316,22 +313,11 @@ const employeeChipList = document.getElementById('employeeChipList');
 const employeeTasksModal = document.getElementById('employeeTasksModal');
 const employeeTasksTitle = document.getElementById('employeeTasksTitle');
 const employeeTasksList = document.getElementById('employeeTasksList');
-const handoverAuthor = document.getElementById('handoverAuthor');
 const handoverText = document.getElementById('handoverText');
 const handoverAddBtn = document.getElementById('handoverAddBtn');
 const handoverList = document.getElementById('handoverList');
 
 function renderHandoverNotes(){
-  const prevAuthor = handoverAuthor.value;
-  handoverAuthor.innerHTML = '';
-  getEmployees().forEach(function(name){
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    handoverAuthor.appendChild(opt);
-  });
-  if(getEmployees().indexOf(prevAuthor) !== -1) handoverAuthor.value = prevAuthor;
-
   handoverList.innerHTML = '';
   const notes = getHandoverNotes();
   if(notes.length === 0){
@@ -347,12 +333,8 @@ function renderHandoverNotes(){
 
     const meta = document.createElement('div');
     meta.className = 'handover-meta';
-    const authorEl = document.createElement('span');
-    authorEl.className = 'handover-author';
-    authorEl.textContent = note.author || '';
     const timeEl = document.createElement('span');
     timeEl.textContent = formatHandoverTime(note.createdAt);
-    meta.appendChild(authorEl);
     meta.appendChild(timeEl);
 
     const textEl = document.createElement('div');
@@ -383,7 +365,6 @@ handoverAddBtn.addEventListener('click', function(){
   }
   const newNote = {
     id: 'h_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-    author: handoverAuthor.value,
     text: text,
     createdAt: new Date().toISOString()
   };
