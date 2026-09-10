@@ -6,6 +6,9 @@
 <title>골프프렌드 송파점 업무분담 체크리스트</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --blue1:#1e3c72;
@@ -15,7 +18,7 @@
   *{box-sizing:border-box;}
   body{
     margin:0;
-    font-family:'Segoe UI','Malgun Gothic',sans-serif;
+    font-family:'Noto Sans KR','Segoe UI','Malgun Gothic',sans-serif;
     background:linear-gradient(135deg,var(--blue1),var(--blue2));
     min-height:100vh;
     padding:24px 12px 60px;
@@ -118,6 +121,26 @@
   .handover-text{font-size:14px;color:#222;white-space:pre-wrap;word-break:break-word;}
   .handover-del{position:absolute;top:10px;right:10px;background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
   .handover-empty{color:#888;font-size:13px;text-align:center;padding:12px;grid-column:1/-1;}
+
+  .manual-item{background:#fff;border-radius:12px;border:1px solid #e6eaf2;border-left:4px solid var(--accent);box-shadow:0 2px 10px rgba(30,60,114,.07);overflow:hidden;transition:box-shadow .2s;}
+  .manual-item:hover{box-shadow:0 6px 18px rgba(30,60,114,.13);}
+  .manual-item.done{border-left-color:#22c55e;}
+  .manual-header{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:default;}
+  .manual-header.clickable{cursor:pointer;user-select:none;}
+  .manual-chevron{font-size:12px;color:#9aa5b8;transition:transform .2s;flex-shrink:0;}
+  .manual-item.expanded .manual-chevron{transform:rotate(90deg);}
+  .manual-header-title{flex:1;font-weight:700;font-size:15.5px;color:#1e3c72;letter-spacing:-0.2px;min-width:0;}
+  .manual-item.done .manual-header-title{color:#9aa3b5;text-decoration:line-through;}
+  .manual-badge{font-size:11px;color:#5b6b8c;background:#eef2fa;border-radius:20px;padding:3px 10px;flex-shrink:0;font-weight:600;}
+  .manual-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+  .manual-check{width:17px;height:17px;cursor:pointer;accent-color:#22c55e;}
+  .manual-btn-edit{background:#e0e7ff;color:#3730a3;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:600;}
+  .manual-btn-del{background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:600;}
+  .manual-body{display:none;padding:2px 16px 16px 40px;border-top:1px solid #f0f3f9;}
+  .manual-item.expanded .manual-body{display:block;}
+  .manual-item.done .manual-body{opacity:.55;}
+  .note-step{font-size:13.5px;color:#333;line-height:1.7;margin-top:10px;font-weight:500;word-break:break-word;}
+  .note-substep{font-size:12.5px;color:#697386;line-height:1.65;margin-top:2px;padding-left:16px;word-break:break-word;}
   .app-layout{display:flex;gap:20px;align-items:flex-start;}
   .sidebar{
     width:200px;flex-shrink:0;background:#fff;border-radius:16px;padding:14px;
@@ -143,6 +166,13 @@
     .sidebar-item{width:auto;flex:1;justify-content:center;white-space:nowrap;padding:10px 10px;font-size:14px;}
     .top-bar{min-height:80px;padding-right:70px;}
     .header-combo{height:70px;}
+    .manual-header{flex-wrap:wrap;padding:12px 14px;gap:8px 10px;}
+    .manual-header-title{flex:1 1 auto;font-size:14.5px;}
+    .manual-badge{order:1;}
+    .manual-actions{order:2;flex:1 0 100%;justify-content:flex-end;margin-top:2px;}
+    .manual-body{padding:2px 14px 14px 30px;}
+    .note-step{font-size:13px;}
+    .note-substep{font-size:12px;padding-left:12px;}
   }
 </style>
 </head>
@@ -395,6 +425,7 @@ const addCategoryBtn = document.getElementById('addCategoryBtn');
 const customPagesContainer = document.getElementById('customPagesContainer');
 
 let currentPage = 'checklist';
+const manualExpanded = new Set();
 
 function getCustomCategories(){
   return (state && Array.isArray(state.customCategories)) ? state.customCategories : [];
@@ -507,7 +538,7 @@ function renderCustomPages(){
         const cats = getCustomCategories().map(function(c){
           if(c.id !== cat.id) return c;
           const notes = Array.isArray(c.notes) ? c.notes : [];
-          return Object.assign({}, c, {notes: [newNote].concat(notes)});
+          return Object.assign({}, c, {notes: notes.concat([newNote])});
         });
         docRef.update({customCategories: cats}).then(function(){ textarea.value = ''; });
       });
@@ -525,17 +556,42 @@ function renderCustomPages(){
       empty.textContent = '등록된 내용이 없습니다.';
       listEl.appendChild(empty);
     } else {
-      notes.forEach(function(note){
+      notes.forEach(function(note, noteIdx){
         const isDone = !!note.done;
-        const item = document.createElement('div');
-        item.className = 'handover-item' + (isDone ? ' done' : '');
+        const lines = String(note.text == null ? '' : note.text).split('\n');
+        const titleLine = lines[0] || '';
+        const bodyLines = lines.slice(1).filter(function(l){ return l.trim().length > 0; });
+        const hasBody = bodyLines.length > 0;
+        const noteKey = pageId + ':' + note.id;
+        const isExpanded = hasBody && manualExpanded.has(noteKey);
 
-        const checkWrap = document.createElement('div');
-        checkWrap.className = 'handover-check-wrap';
+        const item = document.createElement('div');
+        item.className = 'manual-item' + (isDone ? ' done' : '') + (isExpanded ? ' expanded' : '');
+
+        const header = document.createElement('div');
+        header.className = 'manual-header';
+
+        if(hasBody){
+          const chevron = document.createElement('span');
+          chevron.className = 'manual-chevron';
+          chevron.textContent = '▸';
+          header.appendChild(chevron);
+        }
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'manual-header-title';
+        titleEl.textContent = titleLine;
+        header.appendChild(titleEl);
+
+        const actions = document.createElement('div');
+        actions.className = 'manual-actions';
+
         const cb = document.createElement('input');
         cb.type = 'checkbox';
+        cb.className = 'manual-check';
         cb.checked = isDone;
-        cb.title = '해결 완료 체크';
+        cb.title = '완료 체크';
+        cb.addEventListener('click', function(e){ e.stopPropagation(); });
         cb.addEventListener('change', function(){
           const cats = getCustomCategories().map(function(c){
             if(c.id !== cat.id) return c;
@@ -547,22 +603,34 @@ function renderCustomPages(){
           });
           docRef.update({customCategories: cats});
         });
-        checkWrap.appendChild(cb);
+        actions.appendChild(cb);
 
-        const meta = document.createElement('div');
-        meta.className = 'handover-meta';
-        const timeEl = document.createElement('span');
-        timeEl.textContent = formatHandoverTime(note.createdAt);
-        meta.appendChild(timeEl);
-
-        const textEl = document.createElement('div');
-        textEl.className = 'handover-text';
-        textEl.textContent = note.text;
+        const editBtn = document.createElement('button');
+        editBtn.className = 'manual-btn-edit';
+        editBtn.textContent = '수정';
+        editBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          const newText = prompt('내용 수정', note.text);
+          if(newText === null) return;
+          const trimmed = newText.trim();
+          if(!trimmed) return;
+          const cats = getCustomCategories().map(function(c){
+            if(c.id !== cat.id) return c;
+            const notesUpd = (Array.isArray(c.notes) ? c.notes : []).map(function(n){
+              if(n.id !== note.id) return n;
+              return Object.assign({}, n, {text: trimmed});
+            });
+            return Object.assign({}, c, {notes: notesUpd});
+          });
+          docRef.update({customCategories: cats});
+        });
+        actions.appendChild(editBtn);
 
         const delBtn = document.createElement('button');
-        delBtn.className = 'handover-del';
+        delBtn.className = 'manual-btn-del';
         delBtn.textContent = '삭제';
-        delBtn.addEventListener('click', function(){
+        delBtn.addEventListener('click', function(e){
+          e.stopPropagation();
           if(!confirm('이 내용을 삭제할까요?')) return;
           const cats = getCustomCategories().map(function(c){
             if(c.id !== cat.id) return c;
@@ -571,11 +639,35 @@ function renderCustomPages(){
           });
           docRef.update({customCategories: cats});
         });
+        actions.appendChild(delBtn);
 
-        item.appendChild(checkWrap);
-        item.appendChild(meta);
-        item.appendChild(textEl);
-        item.appendChild(delBtn);
+        header.appendChild(actions);
+
+        if(hasBody){
+          header.classList.add('clickable');
+          header.addEventListener('click', function(){
+            if(manualExpanded.has(noteKey)) manualExpanded.delete(noteKey);
+            else manualExpanded.add(noteKey);
+            renderCustomPages();
+          });
+        }
+
+        item.appendChild(header);
+
+        if(hasBody){
+          const body = document.createElement('div');
+          body.className = 'manual-body';
+          bodyLines.forEach(function(line){
+            const trimmed = line.trim();
+            const isStep = /^\d+[.)]/.test(trimmed);
+            const lineEl = document.createElement('div');
+            lineEl.className = isStep ? 'note-step' : 'note-substep';
+            lineEl.textContent = trimmed;
+            body.appendChild(lineEl);
+          });
+          item.appendChild(body);
+        }
+
         listEl.appendChild(item);
       });
     }
@@ -868,6 +960,91 @@ addItemBtn.addEventListener('click', function(){
   docRef.update({items: items});
 });
 
+const MANUAL_SEED_DATA = [
+  {
+    "title": "매장내 주의 사항",
+    "items": [
+      "1. 개인업무(블로그, 당근 작업) 제외 모든 업무는 직급에 상관 없이 다 같이 하기",
+      "2. 새상품, 중고제품 진열 빠진곳 있으면 채우기",
+      "3. 클럽 / 용품 정리정돈 눈에 보이면 바로 하기",
+      "4. 시타장 / 시타채 항상 정리",
+      "5. 메모하는 습관 들이기"
+    ]
+  },
+  {
+    "title": "입고",
+    "items": [
+      "1. 입고 업무 시 이카운트 전표확인",
+      "2. 입고처 확인 ( 브랜드에서 왔는지 or 매장에서 왔는지 확인 )",
+      "3. 실물확인 (스펙 → 상태 → 수량 확인 후 입고 진행)\n단, 비닐 찢어진 경우 → 커버 안들어온 경우 → 잘못 입고된 경우 입고를 잡으면 안됨 - 물류 담당자에게 연락 후 해결",
+      "4. 바코드 출력 (창고에 들어갈 물건만 2개씩 출력)",
+      "5. 전표상 날짜 → 수량 → 입고처 → 입고금액 확인 후 POS프로그램 입고 진행\n ( 중복입고 , 날짜, 수량, 금액 안맞으면 입고 잡으면 안됨 - 전표와 맞아야 할것)"
+    ]
+  },
+  {
+    "title": "출고",
+    "items": [
+      "1. 쇼핑몰 - 바코드 확인 → 쇼핑몰 시트 비고란 확인 → 물건 찾기( 수량 → 사은품 → 바코드 재확인) → 택배송장 출력 \n   → 송장 확인증 파일처리 → 포장(에어캡 사용) → 취급주의 스티커 반드시 부착\n   주의사항 (제품이랑 송장이랑 일치한지 확인) → 이카운트 POS프로그램 출고처리 확인",
+      "2. 재고확보 (타매장 출고시) - 컨트롤 + F / 송파 검색 → 출고 매장 확인 → 바코드 확인 후 실재고 맞는지 확인 → 택배송장입력\n    → 점간이동 순서 시트에서 매장 주소확인 → 택배송장 출력 → 포장(포장시 지관통 or 에어캡 사용) → 취급주의 스티커 부착 \n   재고확보 (송파점 매장 입고시) - 컨트롤 + F 송파 검색 → 바코드확인 → 요청매장입고확인 체크",
+      "3. 지점간이동(신품 매장에 없는 경우) - 바코드 찾기 → 재고 있는지 확인 → 땡길 수 있는 매장 확인 → 매장 순서 확인 → 매장에 전화 요청 → \n   고객직배인지 매장인지 확인 → 구글 시트와 카톡으로 내용 기입 → 택배 포장 → 선결제시 송파점 업무 시트(선결제주문건)에 작성 \n   지점간이동(타매장에서 요청해서 보낼때) - 요청매장에서 실재고 맞는지 확인함 → 구글 시트와 카톡으로 내용남겨달라고 말해주기 → 송파점 업무 시트(점간이동시트)\n   작성된거 확인 → 바코드 확인 → 실재고 맞는지 확인(커버랑 같이 나가는지 체크) → 고객직배와 매장인지 확인 → 택배 포장",
+      "4. 중고클럽이동\n우리(송파점)에서 땡길 시 → 찾은 물건 보유하고 있는 매장에 전화 → 실재고, 커버 유무 확인 → 입고관리 시트에 들어가서 입고(입고시 날짜 : 판매날짜 입고처 : 물건 보유중인 매장) → 판매처리 완료 후 → 보유매장에 판매 되었다 전화 및 카톡 내용 남기기 → 중고클럽점간이동시트  → 출고매장(보유매장) → 바코드 → 상품명 → 입고가 → 판매가 → 최종 판매가 → 수량 → 요청매장 입력\n\n타 매장에서 요청시 → 찾는 물건 바코드 확인 → 요청한 매장에는 재고가 없는게 맞는지 확인 → 실재고 맞는지, 커버도 맞는지 확인 → 맞으면 전화나 카톡으로 남겨주기 → 판매 처리해서 시트 남겨줬는지 확인후 비고란에 적혀 있는 주소(매장 or 고객 직배) 로 포장 → 송장 뽑은 후 송장번호 입력",
+      "5. 골프딜 - 골프딜 문자메세지 확인 → 골프딜 사이트 확인 → 배송준비에 숫자 떠있는거 클릭 → 상품 클릭 → 상품 바코드 복사해서 pos프로그램\n   에 재고확인(0처리 되어 있는지 확인) → 택배 송장 출력 → 송장 뽑았으면 골프딜 사이트에 송장번호 입력",
+      "6. POS프로그램 쇼핑몰 - pos프로그램에 쇼핑몰관리 → 쇼핑몰주문관리현황 클릭 → 검색시간 1일부터 당일 날짜 → 바코드 따서 재고 확인 →\n   택배사 클릭하면 고객 정보 나옴 → 택배 송장 출력 → 택배 송장 번호 POS 프로그램에 입력 → 확인란에 미확인 되어 있는거 클릭하면 확인 이라고 바뀜 → \n   상태란에 더블클릭해서 판매로 바꿔주면 됨",
+      "7. 쿠팡이츠 - 쿠팡이츠에 주문 들어오면 결제창에 알림 울림 → 주문 확인 → 배달기사님 부르기 → 재고 포장 → 구글시트에 쿠팡이츠 주문건 작성 → \n   시트 순서대로 입력(단가, 합계금액 꼭 확인) → 매장체크란에 꼭 체크"
+    ]
+  },
+  {
+    "title": "피팅",
+    "items": [
+      "1. 티디지 홈페이지 로그인 → 해당 상품 검색 → 주문 / 가격 확인 → 홈페이지 링크 복사 / 제품명 복사 → 해당 바코드 복사 → 시트 작성 \n   (시트 작성 방법) 제품 링크 넣기 → 제품명 넣기 → 옵션 넣기 → 바코드 입력 → 수량 입력 → 단가 입력 → 요청매장(송파점) → 작업매장(현재 도곡점)\n   → 수리내용(재고용 / 고객주문 / 피팅용) → 시트 작성 후 점간이동 시트 → 요청일 입력 → 출고매장(현재 도곡점) → 바코드 입력 → 수량 입력 → \n   입고 매장( 송파점 ) → 출고할 주소 입력\n   → 1)수리건일시 클럽 A/S 명부 시트에 입력 2) 피팅 주문시 선결제 주문건 고객명부에 작성 3)피팅일지 입력 4) 카톡보내주기",
+      "2. 라임스포츠 ( 티디지와 동일)",
+      "3. 피팅센터(도곡점) - 물류부 공지사항 확인 → 사진 찍은 후 카톡에 내용 피팅과 수리 구분해서 내용 작성 → 1)수리건일시 클럽 A/S 명부 시트에 입력 2) 피팅 주문시 선결제 주문건 고객 명부에 작성"
+    ]
+  },
+  {
+    "title": "소급할인",
+    "items": [
+      "1. 수기입고 - 물류부 카톡방 공지 확인 → 이카운트 로그인 → 전표 확인 → 실물확인( 바코드 확인 ) → 수량 / 품목 확인 → 단기 낮은 바코드로 입고 처리 진행",
+      "2. POS프로그램 재입고처리 - 매입관리 → 재입고처리 → 이카운트 전표 확인 → 입고처 입력 → 검색기간 입력 → 반품일과 입고일 카톡 공지 확인 → 검색 → \n   신상품 매칭 → 재입고처리 → 재입고처리 되었는지 확인"
+    ]
+  },
+  {
+    "title": "CS주문 및 재고확보",
+    "items": [
+      "1. CS주문 - CS주문 이카운트 로그인 → 주문서입력 → 주문해야할 클럽 / 용품 / 본사물품 확인 → 품목코드에 바코드 입력 → 품목명이랑 규격이 주문하려는 스펙과 맞는지 확인 → 수량 입력 → 적요 작성 ( 전표 작성시 같은 브랜드끼리 주문 할 것!! )",
+      "2. 재고확보 - POS프로그램 → 판매관리 → 판매현황(상품) 클릭 → 검색시간은 최근에 재고확보했던 날짜 다음날부터 당일날짜로 검색 → \n   중고/신상에서 클럽 선택 → 해당 클럽들 복사해서 메모장에 입력 →  점간이동 / 쇼핑몰 / 매장에 없는 클럽까지 확인 → 바코드 따서 땡길 수 있는지 확인  → \n   땡길 수 있는 품목 메모장에 입력 → 구글시트 재고확보란에 입력"
+    ]
+  },
+  {
+    "title": "재고 조사 및 조정",
+    "items": [
+      "1. PDA메뉴 → 메인메뉴 → 재고확인 → 다운로드 → 검사 → 실재고바코드찍기 → PDA입/출고 확인 → 날짜는 시작한 날짜로 변경 → 전표검색 → 전체검색 →\n   엑셀저장 → 이상정보클릭 → 이상정보엑셀저장 → 실재고 수량 확인 \n   (재고조사는 클럽과 용품 2개로 나누어서 진행)\n2. 재고 조정 → 엑셀파일 참고(feat. 황해찬)"
+    ]
+  },
+  {
+    "title": "매입",
+    "items": [
+      "1. 매입관리 → 클럽매입상담 → 신규상담클릭(무조건) → 신규 클릭 → 기준상품 클릭 → 신품, 성별, 구분, 브랜드, 모델명 입력해서 검색 → 정품유무확인 →\n   클럽수량 확인 → 도수확인 → 샤프트 검색 → 강도, 상태(보통), 페이스(보통) → 원산지 확인 → 커버 유,무 확인 → 불량그립(0) → 결정매입가 엔터 → \n   최종매입가 엔터 → POS판매가 입력 → 적요란작성 → 저장 클릭 → 매입고객정보 입력 → 신분증스캔 → 견적서 발행 → 매입단톡방에 견적서 캡쳐따서 올리기\n   → 교환은 바로 올리고, 통장일시 인터넷 기업은행에 올려야함"
+    ]
+  }
+];
+
+function buildManualSeedCategories(){
+  const total = MANUAL_SEED_DATA.length;
+  return [{
+    id: 'manual',
+    name: '업무 메뉴얼',
+    notes: MANUAL_SEED_DATA.map(function(cat, ci){
+      return {
+        id: 'manual_' + ci,
+        text: cat.title + '\n' + cat.items.join('\n'),
+        createdAt: new Date(Date.now() - (total - ci) * 1000).toISOString(),
+        done: false
+      };
+    })
+  }];
+}
+
 function ensureDoc(){
   return docRef.get().then(function(snap){
     if(!snap.exists){
@@ -877,7 +1054,8 @@ function ensureDoc(){
         adminPassword: DEFAULT_ADMIN_PASSWORD,
         employees: DEFAULT_EMPLOYEES.slice(),
         handoverNotes: [],
-        customCategories: []
+        customCategories: buildManualSeedCategories(),
+        manualSeeded: true
       });
     }
     const data = snap.data();
@@ -886,6 +1064,10 @@ function ensureDoc(){
     if(!Array.isArray(data.employees)) patch.employees = DEFAULT_EMPLOYEES.slice();
     if(!Array.isArray(data.handoverNotes)) patch.handoverNotes = [];
     if(!Array.isArray(data.customCategories)) patch.customCategories = [];
+    if((!Array.isArray(data.customCategories) || data.customCategories.length === 0) && !data.manualSeeded){
+      patch.customCategories = buildManualSeedCategories();
+      patch.manualSeeded = true;
+    }
     if(Array.isArray(data.items)){
       const migration = migrateTwoPersonFields(data.items);
       if(migration.changed) patch.items = migration.items;
