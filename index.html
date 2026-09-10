@@ -546,6 +546,7 @@ function renderCustomPages(){
 
     pageEl.querySelector('.cat-title-text').textContent = cat.name;
     pageEl.querySelector('.cat-del-btn').classList.toggle('hidden', !isAdmin);
+    pageEl.querySelector('.handover-add-row').classList.toggle('hidden', !isAdmin);
 
     const listEl = pageEl.querySelector('.handover-list');
     listEl.innerHTML = '';
@@ -606,7 +607,7 @@ function renderCustomPages(){
         actions.appendChild(cb);
 
         const editBtn = document.createElement('button');
-        editBtn.className = 'manual-btn-edit';
+        editBtn.className = 'manual-btn-edit' + (isAdmin ? '' : ' hidden');
         editBtn.textContent = '수정';
         editBtn.addEventListener('click', function(e){
           e.stopPropagation();
@@ -627,7 +628,7 @@ function renderCustomPages(){
         actions.appendChild(editBtn);
 
         const delBtn = document.createElement('button');
-        delBtn.className = 'manual-btn-del';
+        delBtn.className = 'manual-btn-del' + (isAdmin ? '' : ' hidden');
         delBtn.textContent = '삭제';
         delBtn.addEventListener('click', function(e){
           e.stopPropagation();
