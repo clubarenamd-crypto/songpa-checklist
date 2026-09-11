@@ -135,11 +135,15 @@
   .manual-item{background:#fff;border-radius:12px;border:1px solid #e6eaf2;border-left:4px solid var(--accent);box-shadow:0 2px 10px rgba(30,60,114,.07);overflow:hidden;transition:box-shadow .2s;}
   .manual-item:hover{box-shadow:0 6px 18px rgba(30,60,114,.13);}
   .manual-item.done{border-left-color:#22c55e;}
+  .manual-item.manual-draggable{cursor:grab;}
+  .manual-item.manual-draggable:active{cursor:grabbing;}
+  .manual-item.manual-dragging{opacity:.4;}
+  .manual-item.manual-drag-over{outline:2px dashed var(--accent);outline-offset:-2px;}
   .manual-header{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:default;}
   .manual-header.clickable{cursor:pointer;user-select:none;}
   .manual-chevron{font-size:12px;color:#9aa5b8;transition:transform .2s;flex-shrink:0;}
   .manual-item.expanded .manual-chevron{transform:rotate(90deg);}
-  .manual-header-title{flex:1;font-weight:700;font-size:15.5px;color:#1e3c72;letter-spacing:-0.2px;min-width:0;}
+  .manual-header-title{flex:1;font-weight:700;font-size:15.5px;color:#1e3c72;letter-spacing:-0.2px;min-width:0;text-decoration:none;}
   .manual-item.done .manual-header-title{color:#9aa3b5;text-decoration:line-through;}
   .manual-badge{font-size:11px;color:#5b6b8c;background:#eef2fa;border-radius:20px;padding:3px 10px;flex-shrink:0;font-weight:600;}
   .manual-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
@@ -724,6 +728,40 @@ function renderCustomPages(){
 
         const item = document.createElement('div');
         item.className = 'manual-item' + (isDone ? ' done' : '') + (isExpanded ? ' expanded' : '');
+
+        if(isAdmin){
+          item.draggable = true;
+          item.classList.add('manual-draggable');
+          item.addEventListener('dragstart', function(e){
+            e.dataTransfer.setData('text/plain', String(noteIdx));
+            item.classList.add('manual-dragging');
+          });
+          item.addEventListener('dragend', function(){
+            item.classList.remove('manual-dragging');
+          });
+          item.addEventListener('dragover', function(e){
+            e.preventDefault();
+            item.classList.add('manual-drag-over');
+          });
+          item.addEventListener('dragleave', function(){
+            item.classList.remove('manual-drag-over');
+          });
+          item.addEventListener('drop', function(e){
+            e.preventDefault();
+            item.classList.remove('manual-drag-over');
+            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            const toIdx = noteIdx;
+            if(isNaN(fromIdx) || fromIdx === toIdx) return;
+            const cats = getCustomCategories().map(function(c){
+              if(c.id !== cat.id) return c;
+              const notesArr = (Array.isArray(c.notes) ? c.notes : []).slice();
+              const moved = notesArr.splice(fromIdx, 1)[0];
+              notesArr.splice(toIdx, 0, moved);
+              return Object.assign({}, c, {notes: notesArr});
+            });
+            docRef.update({customCategories: cats});
+          });
+        }
 
         const header = document.createElement('div');
         header.className = 'manual-header';
