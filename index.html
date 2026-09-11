@@ -602,24 +602,26 @@ function renderCustomPages(){
         const actions = document.createElement('div');
         actions.className = 'manual-actions';
 
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'manual-check';
-        cb.checked = isDone;
-        cb.title = '완료 체크';
-        cb.addEventListener('click', function(e){ e.stopPropagation(); });
-        cb.addEventListener('change', function(){
-          const cats = getCustomCategories().map(function(c){
-            if(c.id !== cat.id) return c;
-            const notesUpd = (Array.isArray(c.notes) ? c.notes : []).map(function(n){
-              if(n.id !== note.id) return n;
-              return Object.assign({}, n, {done: cb.checked});
+        if(cat.id !== 'manual'){
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'manual-check';
+          cb.checked = isDone;
+          cb.title = '완료 체크';
+          cb.addEventListener('click', function(e){ e.stopPropagation(); });
+          cb.addEventListener('change', function(){
+            const cats = getCustomCategories().map(function(c){
+              if(c.id !== cat.id) return c;
+              const notesUpd = (Array.isArray(c.notes) ? c.notes : []).map(function(n){
+                if(n.id !== note.id) return n;
+                return Object.assign({}, n, {done: cb.checked});
+              });
+              return Object.assign({}, c, {notes: notesUpd});
             });
-            return Object.assign({}, c, {notes: notesUpd});
+            docRef.update({customCategories: cats});
           });
-          docRef.update({customCategories: cats});
-        });
-        actions.appendChild(cb);
+          actions.appendChild(cb);
+        }
 
         const editBtn = document.createElement('button');
         editBtn.className = 'manual-btn-edit' + (isAdmin ? '' : ' hidden');
