@@ -109,7 +109,7 @@
   .handover-add-row textarea{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;min-height:60px;resize:vertical;font-family:inherit;}
   .handover-add-row button{align-self:flex-end;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
   .handover-list{display:flex;flex-direction:column;gap:14px;}
-  .handover-item{background:#f8f9fc;border-radius:10px;padding:14px 46px 14px 40px;border-left:4px solid var(--accent);position:relative;box-shadow:0 4px 12px rgba(0,0,0,.08);transition:transform .2s,box-shadow .2s;}
+  .handover-item{background:#f8f9fc;border-radius:10px;padding:14px 46px 14px 16px;border-left:4px solid var(--accent);position:relative;box-shadow:0 4px 12px rgba(0,0,0,.08);transition:transform .2s,box-shadow .2s;}
   .handover-item:hover{transform:translateY(-3px);box-shadow:0 10px 20px rgba(0,0,0,.12);}
   .handover-item.new{border-left-color:#f59e0b;background:#fffbeb;}
   .handover-item.done{border-left-color:#22c55e;background:#f3f4f6;}
@@ -119,6 +119,11 @@
   .handover-check-wrap input{width:18px;height:18px;cursor:pointer;}
   .handover-meta{display:flex;gap:8px;align-items:baseline;font-size:12px;color:#888;margin-bottom:4px;}
   .handover-text{font-size:14px;color:#222;white-space:pre-wrap;word-break:break-word;}
+  .handover-lines{display:flex;flex-direction:column;gap:7px;margin-top:2px;}
+  .handover-line{display:flex;align-items:flex-start;gap:8px;}
+  .handover-line input[type=checkbox]{width:18px;height:18px;cursor:pointer;flex-shrink:0;margin-top:1px;}
+  .handover-line-text{font-size:14px;color:#222;white-space:pre-wrap;word-break:break-word;flex:1;}
+  .handover-line.done .handover-line-text{text-decoration:line-through;color:#999;}
   .handover-del{position:absolute;top:10px;right:10px;background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
   .handover-empty{color:#888;font-size:13px;text-align:center;padding:12px;grid-column:1/-1;}
 
@@ -702,29 +707,23 @@ function renderHandoverNotes(){
     handoverList.appendChild(empty);
     return;
   }
+  function computeLineDone(n, lines){
+    if(Array.isArray(n.lineDone) && n.lineDone.length === lines.length){
+      return n.lineDone.slice();
+    }
+    return lines.map(function(){ return !!n.done; });
+  }
+
   notes.forEach(function(note){
     const isNew = handoverSessionLastSeen && note.createdAt > handoverSessionLastSeen;
-    const isDone = !!note.done;
+    const lines = String(note.text || '').split('\n')
+      .map(function(l){ return l.trim(); })
+      .filter(function(l){ return l.length > 0; });
+    const lineDone = computeLineDone(note, lines);
+    const isDone = lines.length > 0 && lineDone.every(function(d){ return d; });
+
     const item = document.createElement('div');
     item.className = 'handover-item' + (isNew ? ' new' : '') + (isDone ? ' done' : '');
-
-    const checkWrap = document.createElement('div');
-    checkWrap.className = 'handover-check-wrap';
-    const doneCheckbox = document.createElement('input');
-    doneCheckbox.type = 'checkbox';
-    doneCheckbox.checked = isDone;
-    doneCheckbox.title = '해결 완료 체크';
-    doneCheckbox.addEventListener('change', function(){
-      const updated = getHandoverNotes().map(function(n){
-        if(n.id !== note.id) return n;
-        const copy = Object.assign({}, n);
-        copy.done = doneCheckbox.checked;
-        return copy;
-      });
-      docRef.update({handoverNotes: updated});
-    });
-    checkWrap.appendChild(doneCheckbox);
-    item.appendChild(checkWrap);
 
     const meta = document.createElement('div');
     meta.className = 'handover-meta';
@@ -738,9 +737,40 @@ function renderHandoverNotes(){
       meta.appendChild(newTag);
     }
 
-    const textEl = document.createElement('div');
-    textEl.className = 'handover-text';
-    textEl.textContent = note.text;
+    const linesWrap = document.createElement('div');
+    linesWrap.className = 'handover-lines';
+    lines.forEach(function(lineText, idx){
+      const lineRow = document.createElement('div');
+      lineRow.className = 'handover-line' + (lineDone[idx] ? ' done' : '');
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!lineDone[idx];
+      cb.title = '해결 완료 체크';
+      cb.addEventListener('change', function(){
+        const updated = getHandoverNotes().map(function(n){
+          if(n.id !== note.id) return n;
+          const nLines = String(n.text || '').split('\n')
+            .map(function(l){ return l.trim(); })
+            .filter(function(l){ return l.length > 0; });
+          const nLineDone = computeLineDone(n, nLines);
+          nLineDone[idx] = cb.checked;
+          const copy = Object.assign({}, n);
+          copy.lineDone = nLineDone;
+          copy.done = nLineDone.length > 0 && nLineDone.every(function(d){ return d; });
+          return copy;
+        });
+        docRef.update({handoverNotes: updated});
+      });
+
+      const textEl = document.createElement('span');
+      textEl.className = 'handover-line-text';
+      textEl.textContent = lineText;
+
+      lineRow.appendChild(cb);
+      lineRow.appendChild(textEl);
+      linesWrap.appendChild(lineRow);
+    });
 
     const delBtn = document.createElement('button');
     delBtn.className = 'handover-del';
@@ -752,7 +782,7 @@ function renderHandoverNotes(){
     });
 
     item.appendChild(meta);
-    item.appendChild(textEl);
+    item.appendChild(linesWrap);
     item.appendChild(delBtn);
     handoverList.appendChild(item);
   });
@@ -767,15 +797,13 @@ handoverAddBtn.addEventListener('click', function(){
     return;
   }
   const now = Date.now();
-  const newNotes = lines.map(function(line, idx){
-    return {
-      id: 'h_' + now + '_' + idx + '_' + Math.random().toString(36).slice(2, 8),
-      text: line,
-      createdAt: new Date(now + idx).toISOString(),
-      done: false
-    };
-  });
-  const notes = newNotes.concat(getHandoverNotes());
+  const newNote = {
+    id: 'h_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    text: lines.join('\n'),
+    createdAt: new Date(now).toISOString(),
+    lineDone: lines.map(function(){ return false; })
+  };
+  const notes = [newNote].concat(getHandoverNotes());
   docRef.update({handoverNotes: notes}).then(function(){
     handoverText.value = '';
   });
