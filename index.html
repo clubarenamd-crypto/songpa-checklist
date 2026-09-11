@@ -162,6 +162,10 @@
   .sidebar-badge{margin-left:auto;background:#f59e0b;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;}
   .sidebar-item.add-category-btn{border:2px dashed #ccc;color:#888;margin-top:4px;}
   .sidebar-item.add-category-btn:hover{background:#f3f4f6;color:#555;}
+  .sidebar-drag-handle{cursor:grab;color:#bbb;font-size:15px;line-height:1;flex-shrink:0;padding:2px 2px;}
+  .sidebar-drag-handle:active{cursor:grabbing;}
+  .sidebar-item.sidebar-dragging{opacity:.4;}
+  .sidebar-item.sidebar-drag-over{outline:2px dashed var(--accent);outline-offset:-2px;}
   .cat-del-btn{background:#fee2e2;color:#b91c1c;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
   .main-content{flex:1;min-width:0;}
   .page-section.hidden{display:none;}
@@ -201,7 +205,6 @@
         <span>인수인계 사항</span>
         <span class="sidebar-badge hidden" id="handoverSidebarBadge">0</span>
       </button>
-      <div id="customCategoryButtons"></div>
       <button class="sidebar-item add-category-btn hidden" id="addCategoryBtn">
         <span class="sidebar-icon">➕</span>
         <span>카테고리 추가</span>
@@ -435,7 +438,6 @@ const sidebarNav = document.getElementById('sidebarNav');
 const pageChecklist = document.getElementById('pageChecklist');
 const pageHandover = document.getElementById('pageHandover');
 const handoverSidebarBadge = document.getElementById('handoverSidebarBadge');
-const customCategoryButtons = document.getElementById('customCategoryButtons');
 const addCategoryBtn = document.getElementById('addCategoryBtn');
 const customPagesContainer = document.getElementById('customPagesContainer');
 
@@ -484,12 +486,12 @@ function deleteCategory(catId){
 function renderSidebarCategories(){
   const categories = getCustomCategories();
   const existingIds = categories.map(function(c){ return 'cat_' + c.id; });
-  customCategoryButtons.querySelectorAll('.sidebar-item').forEach(function(btn){
+  sidebarNav.querySelectorAll('.sidebar-item[data-page^="cat_"]').forEach(function(btn){
     if(existingIds.indexOf(btn.dataset.page) === -1) btn.remove();
   });
   categories.forEach(function(cat){
     const pageId = 'cat_' + cat.id;
-    let btn = customCategoryButtons.querySelector('[data-page="' + pageId + '"]');
+    let btn = sidebarNav.querySelector('[data-page="' + pageId + '"]');
     if(!btn){
       btn = document.createElement('button');
       btn.className = 'sidebar-item';
@@ -502,10 +504,81 @@ function renderSidebarCategories(){
       btn.appendChild(icon);
       btn.appendChild(label);
       bindSidebarButton(btn);
-      customCategoryButtons.appendChild(btn);
+      sidebarNav.insertBefore(btn, addCategoryBtn);
     }
     btn.querySelector('.cat-label').textContent = cat.name;
     btn.classList.toggle('active', pageId === currentPage);
+  });
+  applySidebarOrder();
+}
+
+function getSidebarOrder(){
+  const cats = getCustomCategories();
+  const validIds = ['checklist', 'handover'].concat(cats.map(function(c){ return 'cat_' + c.id; }));
+  const stored = (state && Array.isArray(state.sidebarOrder)) ? state.sidebarOrder : [];
+  const filtered = stored.filter(function(id){ return validIds.indexOf(id) !== -1; });
+  const missing = validIds.filter(function(id){ return filtered.indexOf(id) === -1; });
+  return filtered.concat(missing);
+}
+
+function applySidebarOrder(){
+  const order = getSidebarOrder();
+  order.forEach(function(id){
+    const btn = sidebarNav.querySelector('[data-page="' + id + '"]');
+    if(btn) sidebarNav.insertBefore(btn, addCategoryBtn);
+  });
+  updateSidebarDragUI();
+}
+
+function updateSidebarDragUI(){
+  sidebarNav.querySelectorAll('.sidebar-item[data-page]').forEach(function(btn){
+    let handle = btn.querySelector('.sidebar-drag-handle');
+    if(isAdmin){
+      if(!handle){
+        handle = document.createElement('span');
+        handle.className = 'sidebar-drag-handle';
+        handle.textContent = '≡';
+        handle.title = '드래그해서 순서 변경';
+        handle.draggable = true;
+        handle.addEventListener('click', function(e){ e.stopPropagation(); });
+        handle.addEventListener('dragstart', function(e){
+          e.stopPropagation();
+          e.dataTransfer.setData('text/plain', btn.dataset.page);
+          btn.classList.add('sidebar-dragging');
+        });
+        handle.addEventListener('dragend', function(){
+          btn.classList.remove('sidebar-dragging');
+        });
+        btn.insertBefore(handle, btn.firstChild);
+      }
+      if(!btn.dataset.sidebarDropBound){
+        btn.dataset.sidebarDropBound = '1';
+        btn.addEventListener('dragover', function(e){
+          e.preventDefault();
+          btn.classList.add('sidebar-drag-over');
+        });
+        btn.addEventListener('dragleave', function(){
+          btn.classList.remove('sidebar-drag-over');
+        });
+        btn.addEventListener('drop', function(e){
+          e.preventDefault();
+          btn.classList.remove('sidebar-drag-over');
+          const fromId = e.dataTransfer.getData('text/plain');
+          const toId = btn.dataset.page;
+          if(!fromId || fromId === toId) return;
+          const order = getSidebarOrder();
+          const fromIdx = order.indexOf(fromId);
+          const toIdx = order.indexOf(toId);
+          if(fromIdx === -1 || toIdx === -1) return;
+          const newOrder = order.slice();
+          const moved = newOrder.splice(fromIdx, 1)[0];
+          newOrder.splice(toIdx, 0, moved);
+          docRef.update({sidebarOrder: newOrder});
+        });
+      }
+    } else if(handle){
+      handle.remove();
+    }
   });
 }
 
