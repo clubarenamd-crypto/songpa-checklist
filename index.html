@@ -72,6 +72,11 @@
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50;}
   .modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:320px;text-align:center;}
   .modal input{width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin:14px 0;font-size:14px;}
+  .modal textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #ccc;margin:14px 0;font-size:14px;font-family:inherit;resize:vertical;min-height:44px;text-align:left;}
+  .text-input-modal{max-width:440px;}
+  .add-item-role-choice{display:flex;flex-direction:column;gap:8px;text-align:left;margin:4px 0 14px;}
+  .add-item-role-option{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e6eaf2;border-radius:8px;cursor:pointer;font-size:14px;color:#333;}
+  .add-item-role-option:has(input:checked){border-color:var(--accent);background:#eef2ff;}
   .modal-buttons{display:flex;gap:10px;}
   .modal-buttons button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-size:14px;}
   .btn-primary{background:var(--accent);color:#fff;}
@@ -302,6 +307,38 @@
   </div>
 </div>
 
+<div class="modal-bg hidden" id="textInputModal">
+  <div class="modal text-input-modal">
+    <h3 id="textInputTitle">입력</h3>
+    <textarea id="textInputArea" rows="3"></textarea>
+    <div class="modal-buttons">
+      <button class="btn-secondary" id="textInputCancel">취소</button>
+      <button class="btn-primary" id="textInputConfirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg hidden" id="addItemModal">
+  <div class="modal text-input-modal">
+    <h3>업무 항목 추가</h3>
+    <input type="text" id="addItemTitleInput" placeholder="추가할 업무 이름">
+    <div class="add-item-role-choice">
+      <label class="add-item-role-option">
+        <input type="radio" name="addItemRoleMode" value="single" checked>
+        <span>담당자 1명</span>
+      </label>
+      <label class="add-item-role-option">
+        <input type="radio" name="addItemRoleMode" value="triple">
+        <span>정 / 부1 / 부2 (3명)</span>
+      </label>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-secondary" id="addItemCancel">취소</button>
+      <button class="btn-primary" id="addItemConfirm">추가</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBamcXYyvM6uA97bN1g4x5sHrCtaWbRgvM",
@@ -440,6 +477,45 @@ const pageHandover = document.getElementById('pageHandover');
 const handoverSidebarBadge = document.getElementById('handoverSidebarBadge');
 const addCategoryBtn = document.getElementById('addCategoryBtn');
 const customPagesContainer = document.getElementById('customPagesContainer');
+const textInputModal = document.getElementById('textInputModal');
+const textInputTitle = document.getElementById('textInputTitle');
+const textInputArea = document.getElementById('textInputArea');
+const textInputCancel = document.getElementById('textInputCancel');
+const textInputConfirm = document.getElementById('textInputConfirm');
+const addItemModal = document.getElementById('addItemModal');
+const addItemTitleInput = document.getElementById('addItemTitleInput');
+const addItemCancel = document.getElementById('addItemCancel');
+const addItemConfirm = document.getElementById('addItemConfirm');
+
+let _textInputCallback = null;
+function openTextInputModal(title, initialValue, rows, callback){
+  textInputTitle.textContent = title;
+  textInputArea.value = initialValue || '';
+  textInputArea.rows = rows || 3;
+  _textInputCallback = callback;
+  textInputModal.classList.remove('hidden');
+  textInputArea.focus();
+  textInputArea.select();
+}
+function closeTextInputModal(){
+  textInputModal.classList.add('hidden');
+  _textInputCallback = null;
+}
+textInputCancel.addEventListener('click', function(){
+  closeTextInputModal();
+});
+textInputConfirm.addEventListener('click', function(){
+  const val = textInputArea.value;
+  const cb = _textInputCallback;
+  closeTextInputModal();
+  if(cb) cb(val);
+});
+textInputArea.addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && (e.metaKey || e.ctrlKey || parseInt(textInputArea.rows, 10) <= 1)){
+    e.preventDefault();
+    textInputConfirm.click();
+  }
+});
 
 let currentPage = 'checklist';
 const manualExpanded = new Set();
@@ -464,14 +540,14 @@ sidebarNav.querySelectorAll('.sidebar-item[data-page]').forEach(bindSidebarButto
 showPage('checklist');
 
 addCategoryBtn.addEventListener('click', function(){
-  const name = prompt('추가할 카테고리 이름을 입력하세요');
-  if(!name) return;
-  const trimmed = name.trim();
-  if(!trimmed) return;
-  const newCat = {id: 'cat_' + Date.now(), name: trimmed, notes: []};
-  const categories = getCustomCategories().concat([newCat]);
-  docRef.update({customCategories: categories}).then(function(){
-    showPage('cat_' + newCat.id);
+  openTextInputModal('추가할 카테고리 이름을 입력하세요', '', 1, function(name){
+    const trimmed = (name || '').trim();
+    if(!trimmed) return;
+    const newCat = {id: 'cat_' + Date.now(), name: trimmed, notes: []};
+    const categories = getCustomCategories().concat([newCat]);
+    docRef.update({customCategories: categories}).then(function(){
+      showPage('cat_' + newCat.id);
+    });
   });
 });
 
@@ -693,19 +769,19 @@ function renderCustomPages(){
         editBtn.textContent = '수정';
         editBtn.addEventListener('click', function(e){
           e.stopPropagation();
-          const newText = prompt('내용 수정', note.text);
-          if(newText === null) return;
-          const trimmed = newText.trim();
-          if(!trimmed) return;
-          const cats = getCustomCategories().map(function(c){
-            if(c.id !== cat.id) return c;
-            const notesUpd = (Array.isArray(c.notes) ? c.notes : []).map(function(n){
-              if(n.id !== note.id) return n;
-              return Object.assign({}, n, {text: trimmed});
+          openTextInputModal('내용 수정', note.text, 6, function(newText){
+            const trimmed = (newText || '').trim();
+            if(!trimmed) return;
+            const cats = getCustomCategories().map(function(c){
+              if(c.id !== cat.id) return c;
+              const notesUpd = (Array.isArray(c.notes) ? c.notes : []).map(function(n){
+                if(n.id !== note.id) return n;
+                return Object.assign({}, n, {text: trimmed});
+              });
+              return Object.assign({}, c, {notes: notesUpd});
             });
-            return Object.assign({}, c, {notes: notesUpd});
+            docRef.update({customCategories: cats});
           });
-          docRef.update({customCategories: cats});
         });
         actions.appendChild(editBtn);
 
@@ -1056,13 +1132,32 @@ document.getElementById('pwConfirm').addEventListener('click', function(){
 });
 
 addItemBtn.addEventListener('click', function(){
-  const title = prompt('추가할 업무 이름을 입력하세요');
-  if(!title) return;
-  const useSingle = confirm('담당자가 1명인 업무인가요?\n확인=1명 담당 / 취소=정,부1,부2 3명');
-  const labels = useSingle ? ['담당'] : ['정','부1','부2'];
+  addItemTitleInput.value = '';
+  const singleRadio = document.querySelector('input[name="addItemRoleMode"][value="single"]');
+  if(singleRadio) singleRadio.checked = true;
+  addItemModal.classList.remove('hidden');
+  addItemTitleInput.focus();
+});
+addItemCancel.addEventListener('click', function(){
+  addItemModal.classList.add('hidden');
+});
+addItemTitleInput.addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    addItemConfirm.click();
+  }
+});
+addItemConfirm.addEventListener('click', function(){
+  const title = addItemTitleInput.value.trim();
+  if(!title){ alert('업무 이름을 입력해주세요.'); return; }
+  const modeEl = document.querySelector('input[name="addItemRoleMode"]:checked');
+  const mode = modeEl ? modeEl.value : 'single';
+  const labels = mode === 'single' ? ['담당'] : ['정','부1','부2'];
   const newItem = mkItem('item_'+Date.now(), title, labels);
   const items = state.items.concat([newItem]);
-  docRef.update({items: items});
+  docRef.update({items: items}).then(function(){
+    addItemModal.classList.add('hidden');
+  });
 });
 
 const MANUAL_SEED_DATA = [
