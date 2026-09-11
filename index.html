@@ -324,6 +324,16 @@ function getEmployees(){
 function getHandoverNotes(){
   return (state && Array.isArray(state.handoverNotes)) ? state.handoverNotes : [];
 }
+function splitHandoverBlocks(text){
+  return String(text || '').split(/\n\s*\n/)
+    .map(function(block){
+      return block.split('\n')
+        .map(function(l){ return l.trim(); })
+        .filter(function(l){ return l.length > 0; })
+        .join('\n');
+    })
+    .filter(function(block){ return block.length > 0; });
+}
 function formatHandoverTime(iso){
   try{
     const d = new Date(iso);
@@ -716,9 +726,7 @@ function renderHandoverNotes(){
 
   notes.forEach(function(note){
     const isNew = handoverSessionLastSeen && note.createdAt > handoverSessionLastSeen;
-    const lines = String(note.text || '').split('\n')
-      .map(function(l){ return l.trim(); })
-      .filter(function(l){ return l.length > 0; });
+    const lines = splitHandoverBlocks(note.text);
     const lineDone = computeLineDone(note, lines);
     const isDone = lines.length > 0 && lineDone.every(function(d){ return d; });
 
@@ -750,9 +758,7 @@ function renderHandoverNotes(){
       cb.addEventListener('change', function(){
         const updated = getHandoverNotes().map(function(n){
           if(n.id !== note.id) return n;
-          const nLines = String(n.text || '').split('\n')
-            .map(function(l){ return l.trim(); })
-            .filter(function(l){ return l.length > 0; });
+          const nLines = splitHandoverBlocks(n.text);
           const nLineDone = computeLineDone(n, nLines);
           nLineDone[idx] = cb.checked;
           const copy = Object.assign({}, n);
@@ -789,19 +795,17 @@ function renderHandoverNotes(){
 }
 
 handoverAddBtn.addEventListener('click', function(){
-  const lines = handoverText.value.split('\n')
-    .map(function(l){ return l.trim(); })
-    .filter(function(l){ return l.length > 0; });
-  if(lines.length === 0){
+  const blocks = splitHandoverBlocks(handoverText.value);
+  if(blocks.length === 0){
     alert('인수인계 내용을 입력해주세요.');
     return;
   }
   const now = Date.now();
   const newNote = {
     id: 'h_' + now + '_' + Math.random().toString(36).slice(2, 8),
-    text: lines.join('\n'),
+    text: blocks.join('\n\n'),
     createdAt: new Date(now).toISOString(),
-    lineDone: lines.map(function(){ return false; })
+    lineDone: blocks.map(function(){ return false; })
   };
   const notes = [newNote].concat(getHandoverNotes());
   docRef.update({handoverNotes: notes}).then(function(){
