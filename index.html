@@ -478,11 +478,11 @@
                 <label for="customerPhoneInput">연락처</label>
                 <input type="search" id="customerPhoneInput" placeholder="예) 2345 또는 010-2345-6789" autocomplete="off" inputmode="numeric">
               </div>
-              <button type="button" class="cust-clear-btn" id="customerClearBtn">전체 보기</button>
+              <button type="button" class="cust-clear-btn" id="customerClearBtn">지우기</button>
             </div>
             <div class="cust-hero-hint">둘 중 하나만 넣어도 되고, 번호는 뒷자리 일부만 넣어도 찾아집니다.</div>
           </div>
-          <div class="cust-result-head">
+          <div class="cust-result-head hidden" id="customerResultHead">
             <span class="cust-result-label" id="customerResultLabel"></span>
             <span class="row-count" id="customerCount"></span>
           </div>
@@ -2017,6 +2017,7 @@ const customerClearBtn = document.getElementById('customerClearBtn');
 const customerResults = document.getElementById('customerResults');
 const customerCount = document.getElementById('customerCount');
 const customerResultLabel = document.getElementById('customerResultLabel');
+const customerResultHead = document.getElementById('customerResultHead');
 const openCustomerKeys = {};
 
 function normPhone(v){ return String(v || '').replace(/[^0-9]/g, ''); }
@@ -2148,20 +2149,24 @@ function renderCustomerSearch(){
   const phoneQ = customerPhoneInput ? customerPhoneInput.value.trim() : '';
   const searching = !!(nameQ || phoneQ);
 
-  const all = buildCustomerIndex();
-  const matched = all.filter(function(c){ return customerMatches(c, nameQ, phoneQ); });
-  const list = searching ? matched : matched.slice(0, 20);
-
-  customerResultLabel.textContent = searching ? '조회 결과' : '최근 방문·상담 고객';
-  customerCount.textContent = searching
-    ? (matched.length + '명')
-    : (all.length ? ('전체 ' + all.length + '명 중 최근 ' + list.length + '명') : '');
-
+  /* 조회 전용 화면이라 검색어가 없으면 아무 목록도 띄우지 않는다 */
   customerResults.innerHTML = '';
+  if(!searching){
+    customerResultHead.classList.add('hidden');
+    customerResultLabel.textContent = '';
+    customerCount.textContent = '';
+    return;
+  }
+
+  const list = buildCustomerIndex().filter(function(c){ return customerMatches(c, nameQ, phoneQ); });
+  customerResultHead.classList.remove('hidden');
+  customerResultLabel.textContent = '조회 결과';
+  customerCount.textContent = list.length + '명';
+
   if(list.length === 0){
     const e = document.createElement('div');
     e.className = 'cust-empty';
-    e.textContent = searching ? '해당하는 고객 기록이 없습니다.' : '아직 등록된 고객 기록이 없습니다.';
+    e.textContent = '해당하는 고객 기록이 없습니다.';
     customerResults.appendChild(e);
     return;
   }
@@ -2171,7 +2176,7 @@ function renderCustomerSearch(){
     const card = document.createElement('div');
     card.className = 'cust-card';
     /* 조회해서 3명 이하로 나오면 바로 펼쳐서 보여줌 */
-    if(openCustomerKeys[c.key] || (searching && list.length <= 3)) card.classList.add('open');
+    if(openCustomerKeys[c.key] || list.length <= 3) card.classList.add('open');
 
     const head = document.createElement('div');
     head.className = 'cust-head';
