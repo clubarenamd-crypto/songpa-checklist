@@ -868,6 +868,7 @@ const clDate = document.getElementById('clDate');
 const clName = document.getElementById('clName');
 const clGender = document.getElementById('clGender');
 const clPhone = document.getElementById('clPhone');
+attachPhoneFormat(clPhone);
 const clChannel = document.getElementById('clChannel');
 const clVisitTime = document.getElementById('clVisitTime');
 const clCallback = document.getElementById('clCallback');
@@ -1440,6 +1441,81 @@ handoverAddBtn.addEventListener('click', function(){
   });
 });
 
+/* ===== 연락처 자동 하이픈 ===== */
+function digitsOnly(v){ return String(v || '').replace(/[^0-9]/g, ''); }
+
+/* 숫자만 넣으면 한국 전화번호 형식으로 끊어줌 */
+function formatPhoneKR(raw){
+  const d = digitsOnly(raw).slice(0, 11);
+  if(!d) return '';
+  /* 서울 02 */
+  if(d.indexOf('02') === 0){
+    if(d.length <= 2) return d;
+    if(d.length <= 5) return d.slice(0, 2) + '-' + d.slice(2);
+    if(d.length <= 9) return d.slice(0, 2) + '-' + d.slice(2, 5) + '-' + d.slice(5);
+    return d.slice(0, 2) + '-' + d.slice(2, 6) + '-' + d.slice(6, 10);
+  }
+  /* 1588 같은 대표번호 (8자리) */
+  if(/^1[5678]/.test(d) && d.length <= 8){
+    if(d.length <= 4) return d;
+    return d.slice(0, 4) + '-' + d.slice(4, 8);
+  }
+  /* 010 휴대폰은 항상 3-4-4 (치는 도중에 자릿수가 밀리지 않게) */
+  if(d.indexOf('010') === 0){
+    if(d.length <= 3) return d;
+    if(d.length <= 7) return d.slice(0, 3) + '-' + d.slice(3);
+    return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7, 11);
+  }
+  /* 그 외 031, 070, 011 ... */
+  if(d.length <= 3) return d;
+  if(d.length <= 7) return d.slice(0, 3) + '-' + d.slice(3);
+  if(d.length <= 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+  return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7, 11);
+}
+
+/* 이미 저장된 값 보여줄 때: 전화번호처럼 생긴 것만 다듬고 나머지는 그대로 둔다 */
+function displayPhone(v){
+  const s = String(v || '').trim();
+  if(!s) return '';
+  if(!/^[0-9\-\s()+]+$/.test(s)) return s;
+  const d = digitsOnly(s);
+  if(d.length < 8 || d.length > 11) return s;
+  return formatPhoneKR(d);
+}
+
+/* 입력칸에 붙이면 타이핑하는 대로 하이픈이 들어감 (커서 위치 유지) */
+function attachPhoneFormat(input){
+  if(!input || input.dataset.phoneFmt) return;
+  input.dataset.phoneFmt = '1';
+  input.setAttribute('inputmode', 'tel');
+  input.addEventListener('input', function(e){
+    const before = input.value;
+    const caret = input.selectionStart === null ? before.length : input.selectionStart;
+    let digits = digitsOnly(before);
+    let digitsBefore = digitsOnly(before.slice(0, caret)).length;
+
+    /* 백스페이스로 하이픈을 지운 경우엔 그 앞 숫자를 지운 것으로 처리 */
+    const deleting = e && e.inputType === 'deleteContentBackward';
+    if(deleting && formatPhoneKR(digits) === (input.dataset.prev || '') && digitsBefore > 0){
+      digits = digits.slice(0, digitsBefore - 1) + digits.slice(digitsBefore);
+      digitsBefore--;
+    }
+
+    const formatted = formatPhoneKR(digits);
+    input.dataset.prev = formatted;
+    if(formatted === before) return;
+    input.value = formatted;
+
+    /* 숫자 몇 번째 뒤에 있었는지를 기준으로 커서를 되돌림 */
+    let pos = 0, seen = 0;
+    while(pos < formatted.length && seen < digitsBefore){
+      if(formatted.charCodeAt(pos) >= 48 && formatted.charCodeAt(pos) <= 57) seen++;
+      pos++;
+    }
+    try { input.setSelectionRange(pos, pos); } catch(err){}
+  });
+}
+
 function todayCompact(){
   const d = new Date();
   return (d.getMonth() + 1) + '/' + d.getDate();
@@ -1563,7 +1639,7 @@ function renderCallLogs(){
     tr.appendChild(tdGender);
 
     const tdPhone = document.createElement('td');
-    tdPhone.textContent = log.phone || '';
+    tdPhone.textContent = displayPhone(log.phone);
     tr.appendChild(tdPhone);
 
     const tdChannel = document.createElement('td');
@@ -1639,7 +1715,7 @@ function openCallLogModal(log){
     clDate.value = log.dateISO || '';
     clName.value = log.name || '';
     clGender.value = log.gender || '';
-    clPhone.value = log.phone || '';
+    clPhone.value = displayPhone(log.phone);
     clChannel.value = log.channel || '';
     clVisitTime.value = log.visitTime || '';
     clCallback.value = log.callback || '';
@@ -1693,7 +1769,7 @@ callLogModalSave.addEventListener('click', function(){
     date: dateCompact,
     dateISO: clDate.value,
     gender: clGender.value,
-    phone: clPhone.value.trim(),
+    phone: formatPhoneKR(clPhone.value) || clPhone.value.trim(),
     channel: clChannel.value,
     visitTime: clVisitTime.value,
     callback: clCallback.value,
@@ -1737,7 +1813,7 @@ const SHEET_DEFS = {
       {key:'staff',   label:'담당자',       type:'staff',    tag:true},
       {key:'date',    label:'상담일',       type:'date'},
       {key:'name',    label:'고객명',       type:'text'},
-      {key:'phone',   label:'연락처',       type:'text', placeholder:'010-0000-0000'},
+      {key:'phone',   label:'연락처',       type:'phone', placeholder:'010-0000-0000'},
       {key:'gender',  label:'성별',         type:'select', tag:true, options:['', '남', '여']},
       {key:'reason',  label:'보류 사유',    type:'select', tag:true, options:['', '가격 비교중', '타매장 비교중', '재고 없음', '가족과 상의', '단순 문의', '기타']},
       {key:'product', label:'관심 제품',    type:'text', wide:true},
@@ -1758,7 +1834,7 @@ const SHEET_DEFS = {
       {key:'staff',   label:'담당자',    type:'staff',  tag:true},
       {key:'date',    label:'구매일',    type:'date'},
       {key:'name',    label:'고객명',    type:'text'},
-      {key:'phone',   label:'연락처',    type:'text', placeholder:'010-0000-0000'},
+      {key:'phone',   label:'연락처',    type:'phone', placeholder:'010-0000-0000'},
       {key:'gender',  label:'성별',      type:'select', tag:true, options:['', '남', '여']},
       {key:'brand',   label:'브랜드',    type:'text'},
       {key:'product', label:'구매 제품', type:'text', wide:true},
@@ -1871,6 +1947,7 @@ function renderSheet(def){
       const td = document.createElement('td');
       let val = row[col.key] || '';
       if(col.type === 'date') val = sheetShortDate(val);
+      if(col.type === 'phone') val = displayPhone(val);
       if(col.tag){
         td.appendChild(sheetTagSpan(val));
       } else if(col.wide || col.type === 'textarea'){
@@ -1937,6 +2014,11 @@ function openSheetModal(def, row){
     } else if(col.type === 'date'){
       field = document.createElement('input');
       field.type = 'date';
+    } else if(col.type === 'phone'){
+      field = document.createElement('input');
+      field.type = 'text';
+      if(col.placeholder) field.placeholder = col.placeholder;
+      attachPhoneFormat(field);
     } else {
       field = document.createElement('input');
       field.type = 'text';
@@ -1945,6 +2027,7 @@ function openSheetModal(def, row){
     field.dataset.sheetField = col.key;
 
     let initial = row ? (row[col.key] || '') : '';
+    if(col.type === 'phone') initial = displayPhone(initial);
     if(!row && col.type === 'date' && (col.key === 'date')) initial = todayISODate();
     field.value = initial;
 
@@ -1971,7 +2054,9 @@ sheetModalSave.addEventListener('click', function(){
   const data = {};
   def.columns.forEach(function(col){
     const field = sheetModalForm.querySelector('[data-sheet-field="' + col.key + '"]');
-    data[col.key] = field ? String(field.value).trim() : '';
+    let val = field ? String(field.value).trim() : '';
+    if(col.type === 'phone' && val) val = formatPhoneKR(val) || val;
+    data[col.key] = val;
   });
 
   /* 저장한 내역이 다른 달이면 그 달로 자동 이동 (저장했는데 안 보이는 일 방지) */
@@ -2187,7 +2272,7 @@ function renderCustomerSearch(){
     if(c.phone){
       const ph = document.createElement('span');
       ph.className = 'cust-phone';
-      ph.textContent = c.phone;
+      ph.textContent = displayPhone(c.phone);
       head.appendChild(ph);
     }
     const st = document.createElement('span');
