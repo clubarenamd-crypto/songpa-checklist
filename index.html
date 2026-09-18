@@ -114,14 +114,38 @@
   .month-filter{font-family:inherit;font-size:13px;font-weight:600;color:#1e3c72;background:#eef2fa;border:1px solid #dde3f0;border-radius:8px;padding:8px 10px;cursor:pointer;}
   .row-count{font-size:12.5px;font-weight:600;color:#8a93a5;}
   /* 고객 조회 */
-  .customer-search{font-family:inherit;font-size:14px;padding:9px 13px;border:1px solid #ccd2de;border-radius:9px;width:260px;max-width:100%;box-sizing:border-box;}
-  .customer-search:focus{outline:none;border-color:var(--accent);}
-  .customer-hint{font-size:12.5px;color:#8a93a5;margin-bottom:12px;line-height:1.6;}
+  .cust-hero{background:linear-gradient(135deg,#f5f8ff,#eef2fa);border:1px solid #dde4f2;border-radius:14px;padding:22px 24px;margin-bottom:18px;}
+  .cust-hero-title{font-size:19px;font-weight:800;color:#1e3c72;}
+  .cust-hero-sub{font-size:13px;color:#697386;margin-top:5px;line-height:1.6;}
+  .cust-search-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:16px;}
+  .cust-field-box{display:flex;flex-direction:column;gap:6px;flex:1 1 230px;min-width:0;}
+  .cust-field-box label{font-size:13px;font-weight:800;color:#1e3c72;}
+  .cust-field-box input{font-family:inherit;font-size:18px;font-weight:600;padding:14px 16px;border:2px solid #d7dded;border-radius:10px;background:#fff;width:100%;box-sizing:border-box;}
+  .cust-field-box input:focus{outline:none;border-color:var(--accent);}
+  .cust-clear-btn{background:#fff;color:#41506b;border:2px solid #d7dded;border-radius:10px;padding:14px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .cust-clear-btn:hover{background:#eef2fa;border-color:var(--accent);color:var(--accent);}
+  .cust-hero-hint{font-size:12.5px;color:#8a93a5;margin-top:10px;}
+  .cust-result-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .cust-result-label{font-size:14px;font-weight:800;color:#1e3c72;}
   .cust-card{border:1px solid #e6eaf2;border-radius:12px;margin-bottom:10px;overflow:hidden;}
-  .cust-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 16px;background:#f8f9fc;cursor:pointer;}
+  .cust-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;background:#f8f9fc;cursor:pointer;}
   .cust-card.open .cust-head{background:#eef2fa;}
-  .cust-name{font-size:15px;font-weight:800;color:#1e3c72;}
-  .cust-phone{font-size:13.5px;color:#41506b;font-weight:600;}
+  .cust-name{font-size:16.5px;font-weight:800;color:#1e3c72;}
+  .cust-phone{font-size:15px;color:#41506b;font-weight:700;letter-spacing:.2px;}
+  .cust-status{font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:9px;}
+  .cust-status.s-buy{background:#dcfce7;color:#15803d;}
+  .cust-status.s-hold{background:#fee2e2;color:#b91c1c;}
+  .cust-status.s-talk{background:#eef2fa;color:#5b6b8c;}
+  /* 요약 (어떻게 구매까지 이어졌는지) */
+  .cust-summary{background:#f8faff;border:1px solid #e6eaf2;border-radius:10px;padding:13px 15px;margin:12px 0 4px;}
+  .cust-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px;font-weight:700;color:#1e3c72;}
+  .cust-flow-step{background:#fff;border:1px solid #dde3f0;border-radius:8px;padding:5px 11px;}
+  .cust-flow-step.f-buy{background:#dcfce7;border-color:#bbf7d0;color:#15803d;}
+  .cust-flow-arrow{color:#b9c2d4;font-weight:800;}
+  .cust-summary-line{font-size:12.5px;color:#697386;margin-top:9px;line-height:1.7;}
+  .cust-summary-line b{color:#1e3c72;font-weight:700;}
+  .cust-flow-title{font-size:12px;font-weight:800;color:#8a93a5;margin:16px 0 2px;}
+  .cust-step-no{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:#eef2fa;color:#5b6b8c;font-size:11px;font-weight:800;flex-shrink:0;}
   .cust-badges{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;align-items:center;}
   .cust-badge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:9px;background:#eef2fa;color:#5b6b8c;}
   .cust-badge.b-call{background:#e0edff;color:#1d4ed8;}
@@ -442,14 +466,26 @@
 
       <div class="page-section hidden" id="pageCustomer" data-page-id="customer">
         <div class="handover-card">
-          <div class="handover-header-row">
-            <div class="handover-title"><span>고객 조회</span></div>
-            <div class="sheet-toolbar">
-              <input type="search" class="customer-search" id="customerSearch" placeholder="고객명 또는 연락처 입력 (예: 김민수 / 2345)">
-              <span class="row-count" id="customerCount"></span>
+          <div class="cust-hero">
+            <div class="cust-hero-title">🔍 고객 이력 조회</div>
+            <div class="cust-hero-sub">전화상담 · 매장상담 · 보류 재콜백 · 구매 기록을 한 사람 기준으로 모아서 보여줍니다.</div>
+            <div class="cust-search-row">
+              <div class="cust-field-box">
+                <label for="customerNameInput">고객명</label>
+                <input type="search" id="customerNameInput" placeholder="예) 김민수" autocomplete="off">
+              </div>
+              <div class="cust-field-box">
+                <label for="customerPhoneInput">연락처</label>
+                <input type="search" id="customerPhoneInput" placeholder="예) 2345 또는 010-2345-6789" autocomplete="off" inputmode="numeric">
+              </div>
+              <button type="button" class="cust-clear-btn" id="customerClearBtn">전체 보기</button>
             </div>
+            <div class="cust-hero-hint">둘 중 하나만 넣어도 되고, 번호는 뒷자리 일부만 넣어도 찾아집니다.</div>
           </div>
-          <div class="customer-hint" id="customerHint">이름이나 전화번호 일부만 넣어도 찾아집니다. 전화상담·보류 재콜백·구매 기록을 연락처 기준으로 묶어서 보여줍니다.</div>
+          <div class="cust-result-head">
+            <span class="cust-result-label" id="customerResultLabel"></span>
+            <span class="row-count" id="customerCount"></span>
+          </div>
           <div id="customerResults"></div>
         </div>
       </div>
@@ -1975,10 +2011,12 @@ document.querySelectorAll('[data-sheet-month]').forEach(function(sel){
 });
 
 /* ===== 고객 조회 : 전화상담 / 보류 재콜백 / 구매 기록을 연락처 기준으로 통합 ===== */
-const customerSearch = document.getElementById('customerSearch');
+const customerNameInput = document.getElementById('customerNameInput');
+const customerPhoneInput = document.getElementById('customerPhoneInput');
+const customerClearBtn = document.getElementById('customerClearBtn');
 const customerResults = document.getElementById('customerResults');
 const customerCount = document.getElementById('customerCount');
-const customerHint = document.getElementById('customerHint');
+const customerResultLabel = document.getElementById('customerResultLabel');
 const openCustomerKeys = {};
 
 function normPhone(v){ return String(v || '').replace(/[^0-9]/g, ''); }
@@ -2016,7 +2054,7 @@ function buildCustomerIndex(){
   getCallLogs().forEach(function(l){
     const c = slot(l); if(!c) return;
     c.counts.call++;
-    push(c, {kind: 'call', typeLabel: '전화상담', date: recordDate(l, 'dateISO'), staff: l.staff || '', fields: [
+    push(c, {kind: 'call', typeLabel: (l.channel === '매장방문' ? '매장상담' : '전화상담'), date: recordDate(l, 'dateISO'), staff: l.staff || '', channel: l.channel || '', route: l.route || '', fields: [
       ['전화/매장', l.channel], ['성별', l.gender], ['방문 시간', l.visitTime], ['콜백 여부', l.callback],
       ['방문경로', l.route], ['보상판매안내', l.reward], ['고객 질문', l.question], ['답변 내용', l.answer]
     ]});
@@ -2024,7 +2062,7 @@ function buildCustomerIndex(){
   getSheetRows(SHEET_DEFS.recall).forEach(function(r){
     const c = slot(r); if(!c) return;
     c.counts.recall++;
-    push(c, {kind: 'recall', typeLabel: '보류 재콜백', date: recordDate(r, 'date'), staff: r.staff || '', fields: [
+    push(c, {kind: 'recall', typeLabel: '보류 재콜백', date: recordDate(r, 'date'), staff: r.staff || '', result: r.result || '', fields: [
       ['성별', r.gender], ['보류 사유', r.reason], ['관심 제품', r.product],
       ['재콜백 예정일', r.callbackDate ? prettyDate(r.callbackDate) : ''], ['콜백 결과', r.result], ['비고', r.memo]
     ]});
@@ -2032,7 +2070,7 @@ function buildCustomerIndex(){
   getSheetRows(SHEET_DEFS.purchase).forEach(function(r){
     const c = slot(r); if(!c) return;
     c.counts.buy++;
-    push(c, {kind: 'buy', typeLabel: '구매', date: recordDate(r, 'date'), staff: r.staff || '', fields: [
+    push(c, {kind: 'buy', typeLabel: '구매', date: recordDate(r, 'date'), staff: r.staff || '', amount: r.amount || '', fields: [
       ['성별', r.gender], ['브랜드', r.brand], ['구매 제품', r.product], ['금액', r.amount],
       ['결제 방법', r.payment], ['보상판매', r.reward], ['수령 방법', r.receive], ['A/S · 비고', r.memo]
     ]});
@@ -2043,12 +2081,15 @@ function buildCustomerIndex(){
   });
 }
 
-function customerMatches(c, query){
-  const q = String(query || '').trim();
-  if(!q) return true;
-  const digits = normPhone(q);
-  if(digits.length >= 2 && c.phoneDigits.indexOf(digits) !== -1) return true;
-  return c.names.some(function(n){ return n.indexOf(q) !== -1; });
+/* 고객명 / 연락처 각각으로 거르기 (둘 다 넣으면 둘 다 맞아야 함) */
+function customerMatches(c, nameQ, phoneQ){
+  if(nameQ && !c.names.some(function(n){ return n.indexOf(nameQ) !== -1; })) return false;
+  if(phoneQ){
+    const digits = normPhone(phoneQ);
+    if(!digits) return false;
+    if(c.phoneDigits.indexOf(digits) === -1) return false;
+  }
+  return true;
 }
 
 function customerDisplayName(c){
@@ -2056,36 +2097,81 @@ function customerDisplayName(c){
   return c.names.join(' / ');
 }
 
+function wonAmount(v){
+  const n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
+  return isNaN(n) ? 0 : n;
+}
+function formatWon(n){ return n.toLocaleString('ko-KR') + '원'; }
+function daysBetween(a, b){
+  if(!a || !b) return null;
+  const d = (new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000;
+  return isNaN(d) ? null : Math.round(d);
+}
+
+/* 전화상담 → 매장상담 → 구매 로 이어지는 흐름을 요약 */
+function customerSummary(c){
+  const recs = c.records.slice().sort(function(a, b){ return (a.date || '').localeCompare(b.date || ''); });
+  let phoneTalks = 0, storeVisits = 0, route = '', firstDate = '', purchaseDate = '', total = 0, holdOpen = false;
+
+  recs.forEach(function(r){
+    if(!firstDate && r.date) firstDate = r.date;
+    if(r.kind === 'call'){
+      if(r.channel === '매장방문') storeVisits++; else phoneTalks++;
+      if(!route && r.route) route = r.route;
+    } else if(r.kind === 'recall'){
+      if(['구매 완료', '구매 포기'].indexOf(r.result) === -1) holdOpen = true;
+    } else if(r.kind === 'buy'){
+      if(!purchaseDate && r.date) purchaseDate = r.date;
+      total += wonAmount(r.amount);
+    }
+  });
+
+  const flow = [];
+  if(route) flow.push({label: route, buy: false});
+  if(phoneTalks) flow.push({label: '전화상담 ' + phoneTalks + '회', buy: false});
+  if(storeVisits) flow.push({label: '매장상담 ' + storeVisits + '회', buy: false});
+  if(c.counts.recall) flow.push({label: '보류 재콜백 ' + c.counts.recall + '회', buy: false});
+  if(c.counts.buy) flow.push({label: '구매 ' + c.counts.buy + '건', buy: true});
+
+  return {
+    ordered: recs, flow: flow, firstDate: firstDate, purchaseDate: purchaseDate,
+    total: total, phoneTalks: phoneTalks, storeVisits: storeVisits,
+    status: c.counts.buy ? 'buy' : (holdOpen ? 'hold' : 'talk'),
+    statusLabel: c.counts.buy ? '구매 고객' : (holdOpen ? '재콜백 대기' : '상담만'),
+    daysToBuy: daysBetween(firstDate, purchaseDate)
+  };
+}
+
 function renderCustomerSearch(){
   if(!customerResults) return;
-  const query = customerSearch ? customerSearch.value.trim() : '';
-  const all = buildCustomerIndex();
-  const matched = all.filter(function(c){ return customerMatches(c, query); });
-  /* 검색어가 없으면 최근 활동 20명만 */
-  const list = query ? matched : matched.slice(0, 20);
+  const nameQ = customerNameInput ? customerNameInput.value.trim() : '';
+  const phoneQ = customerPhoneInput ? customerPhoneInput.value.trim() : '';
+  const searching = !!(nameQ || phoneQ);
 
-  customerCount.textContent = query
-    ? (matched.length + '명 검색됨')
-    : (all.length ? ('전체 ' + all.length + '명 · 최근순 ' + list.length + '명') : '');
-  customerHint.textContent = query
-    ? '연락처가 같으면 한 사람으로 묶어서 보여줍니다.'
-    : '이름이나 전화번호 일부만 넣어도 찾아집니다. 전화상담·보류 재콜백·구매 기록을 연락처 기준으로 묶어서 보여줍니다.';
+  const all = buildCustomerIndex();
+  const matched = all.filter(function(c){ return customerMatches(c, nameQ, phoneQ); });
+  const list = searching ? matched : matched.slice(0, 20);
+
+  customerResultLabel.textContent = searching ? '조회 결과' : '최근 방문·상담 고객';
+  customerCount.textContent = searching
+    ? (matched.length + '명')
+    : (all.length ? ('전체 ' + all.length + '명 중 최근 ' + list.length + '명') : '');
 
   customerResults.innerHTML = '';
   if(list.length === 0){
     const e = document.createElement('div');
     e.className = 'cust-empty';
-    e.textContent = query ? '검색 결과가 없습니다.' : '아직 등록된 고객 기록이 없습니다.';
+    e.textContent = searching ? '해당하는 고객 기록이 없습니다.' : '아직 등록된 고객 기록이 없습니다.';
     customerResults.appendChild(e);
     return;
   }
 
-  list.forEach(function(c, idx){
+  list.forEach(function(c){
+    const sum = customerSummary(c);
     const card = document.createElement('div');
     card.className = 'cust-card';
-    /* 검색 결과가 하나면 자동으로 펼침 */
-    const shouldOpen = openCustomerKeys[c.key] || (query && list.length === 1);
-    if(shouldOpen) card.classList.add('open');
+    /* 조회해서 3명 이하로 나오면 바로 펼쳐서 보여줌 */
+    if(openCustomerKeys[c.key] || (searching && list.length <= 3)) card.classList.add('open');
 
     const head = document.createElement('div');
     head.className = 'cust-head';
@@ -2099,15 +2185,19 @@ function renderCustomerSearch(){
       ph.textContent = c.phone;
       head.appendChild(ph);
     }
+    const st = document.createElement('span');
+    st.className = 'cust-status s-' + sum.status;
+    st.textContent = sum.statusLabel;
+    head.appendChild(st);
+
     const badges = document.createElement('div');
     badges.className = 'cust-badges';
-    [['call', '상담', c.counts.call], ['recall', '보류', c.counts.recall], ['buy', '구매', c.counts.buy]].forEach(function(b){
-      if(!b[2]) return;
-      const s = document.createElement('span');
-      s.className = 'cust-badge b-' + (b[0] === 'buy' ? 'buy' : b[0]);
-      s.textContent = b[1] + ' ' + b[2];
-      badges.appendChild(s);
-    });
+    if(sum.total > 0){
+      const amt = document.createElement('span');
+      amt.className = 'cust-badge b-buy';
+      amt.textContent = '구매 합계 ' + formatWon(sum.total);
+      badges.appendChild(amt);
+    }
     const last = document.createElement('span');
     last.className = 'cust-last';
     last.textContent = '최근 ' + prettyDate(c.lastDate);
@@ -2122,24 +2212,71 @@ function renderCustomerSearch(){
 
     const body = document.createElement('div');
     body.className = 'cust-body';
-    c.records.slice().sort(function(a, b){ return (b.date || '').localeCompare(a.date || ''); }).forEach(function(rec){
+
+    /* 요약 : 어떤 경로로 들어와서 어떻게 구매까지 갔는지 */
+    const summary = document.createElement('div');
+    summary.className = 'cust-summary';
+    const flow = document.createElement('div');
+    flow.className = 'cust-flow';
+    sum.flow.forEach(function(step, i){
+      if(i > 0){
+        const ar = document.createElement('span');
+        ar.className = 'cust-flow-arrow';
+        ar.textContent = '›';
+        flow.appendChild(ar);
+      }
+      const sp = document.createElement('span');
+      sp.className = 'cust-flow-step' + (step.buy ? ' f-buy' : '');
+      sp.textContent = step.label;
+      flow.appendChild(sp);
+    });
+    summary.appendChild(flow);
+
+    const lineParts = [];
+    if(sum.firstDate) lineParts.push('첫 문의 <b>' + prettyDate(sum.firstDate) + '</b>');
+    if(sum.purchaseDate){
+      let buyTxt = '구매 <b>' + prettyDate(sum.purchaseDate) + '</b>';
+      if(sum.daysToBuy !== null && sum.daysToBuy > 0) buyTxt += ' (문의 후 ' + sum.daysToBuy + '일)';
+      else if(sum.daysToBuy === 0) buyTxt += ' (문의 당일)';
+      lineParts.push(buyTxt);
+    }
+    if(sum.total > 0) lineParts.push('구매 금액 <b>' + formatWon(sum.total) + '</b>');
+    if(!c.counts.buy && sum.status === 'hold') lineParts.push('<b>아직 재콜백 대기 중</b>');
+    if(lineParts.length){
+      const line = document.createElement('div');
+      line.className = 'cust-summary-line';
+      line.innerHTML = lineParts.join(' · ');
+      summary.appendChild(line);
+    }
+    body.appendChild(summary);
+
+    const flowTitle = document.createElement('div');
+    flowTitle.className = 'cust-flow-title';
+    flowTitle.textContent = '진행 흐름 (오래된 순)';
+    body.appendChild(flowTitle);
+
+    sum.ordered.forEach(function(rec, i){
       const box = document.createElement('div');
       box.className = 'cust-rec t-' + rec.kind;
       const top = document.createElement('div');
       top.className = 'cust-rec-top';
+      const no = document.createElement('span');
+      no.className = 'cust-step-no';
+      no.textContent = String(i + 1);
+      top.appendChild(no);
       const tp = document.createElement('span');
       tp.className = 'cust-rec-type';
       tp.textContent = rec.typeLabel;
+      top.appendChild(tp);
       const dt = document.createElement('span');
       dt.className = 'cust-rec-date';
       dt.textContent = prettyDate(rec.date);
-      top.appendChild(tp);
       top.appendChild(dt);
       if(rec.staff){
-        const st = document.createElement('span');
-        st.className = 'cust-rec-staff';
-        st.textContent = '담당 ' + rec.staff;
-        top.appendChild(st);
+        const stf = document.createElement('span');
+        stf.className = 'cust-rec-staff';
+        stf.textContent = '담당 ' + rec.staff;
+        top.appendChild(stf);
       }
       box.appendChild(top);
 
@@ -2158,13 +2295,22 @@ function renderCustomerSearch(){
       box.appendChild(fields);
       body.appendChild(box);
     });
+
     card.appendChild(body);
     customerResults.appendChild(card);
   });
 }
 
-if(customerSearch){
-  customerSearch.addEventListener('input', function(){ renderCustomerSearch(); });
+[customerNameInput, customerPhoneInput].forEach(function(el){
+  if(el) el.addEventListener('input', function(){ renderCustomerSearch(); });
+});
+if(customerClearBtn){
+  customerClearBtn.addEventListener('click', function(){
+    if(customerNameInput) customerNameInput.value = '';
+    if(customerPhoneInput) customerPhoneInput.value = '';
+    renderCustomerSearch();
+    if(customerNameInput) customerNameInput.focus();
+  });
 }
 
 function updateAdminUI(){
