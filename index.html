@@ -23,7 +23,7 @@
     min-height:100vh;
     padding:24px 12px 60px;
   }
-  .wrap{max-width:1200px;margin:0 auto;}
+  .wrap{max-width:1560px;margin:0 auto;}
   .top-bar{position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:24px;min-height:128px;}
   .page-heading{display:flex;align-items:center;justify-content:center;}
   .header-combo{height:118px;width:auto;display:block;}
@@ -138,7 +138,8 @@
   .calllog-add-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;}
   .calllog-add-btn:hover{opacity:.9;}
   .calllog-table-wrap{overflow-x:auto;border-radius:10px;border:1px solid #e6eaf2;}
-  .calllog-table{border-collapse:collapse;width:100%;min-width:1300px;font-size:13px;}
+  /* min-width는 좁은 화면에서만 가로 스크롤이 생기도록 최소한으로. 넓은 화면에서는 내용 폭에 맞춰 한 화면에 들어감 */
+  .calllog-table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
   .calllog-table thead th{background:#eef2fa;color:#1e3c72;padding:9px 8px;text-align:left;border-bottom:2px solid #dde3f0;white-space:nowrap;position:sticky;top:0;z-index:1;}
   .calllog-table tbody td{border-bottom:1px solid #eef0f5;padding:8px 8px;vertical-align:middle;}
   .calllog-table tbody tr:hover{background:#f8f9fc;}
