@@ -187,22 +187,33 @@
   .manual-item.done .manual-body{opacity:.55;}
   .note-step{font-size:13.5px;color:#333;line-height:1.7;margin-top:10px;font-weight:500;word-break:break-word;}
   .note-substep{font-size:12.5px;color:#697386;line-height:1.65;margin-top:2px;padding-left:16px;word-break:break-word;}
-  .app-layout{display:flex;gap:20px;align-items:flex-start;}
+  /* 상단 가로 탭 메뉴 */
+  .app-layout{display:flex;flex-direction:column;gap:18px;align-items:stretch;}
   .sidebar{
-    width:200px;flex-shrink:0;background:#fff;border-radius:16px;padding:14px;
-    box-shadow:0 10px 30px rgba(0,0,0,.15);display:flex;flex-direction:column;gap:6px;
-    position:sticky;top:24px;
+    width:100%;background:#fff;border-radius:16px;padding:0 8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.15);display:flex;flex-direction:row;align-items:stretch;gap:2px;
+    overflow-x:auto;position:sticky;top:10px;z-index:5;
   }
+  .sidebar::-webkit-scrollbar{height:6px;}
+  .sidebar::-webkit-scrollbar-thumb{background:#dfe3ea;border-radius:3px;}
   .sidebar-item{
-    display:flex;align-items:center;gap:10px;padding:12px 14px;border:none;background:transparent;
-    border-radius:10px;font-size:15px;font-weight:700;color:#555;cursor:pointer;text-align:left;width:100%;
+    display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;
+    padding:13px 18px 11px;border:none;border-bottom:3px solid transparent;background:transparent;
+    font-size:15px;font-weight:700;color:#555;cursor:pointer;text-align:left;
+    white-space:nowrap;flex:0 0 auto;
   }
-  .sidebar-item:hover{background:#f3f4f6;}
-  .sidebar-item.active{background:var(--accent);color:#fff;}
-  .sidebar-icon{font-size:17px;}
-  .sidebar-badge{margin-left:auto;background:#f59e0b;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;}
-  .sidebar-item.add-category-btn{border:2px dashed #ccc;color:#888;margin-top:4px;}
-  .sidebar-item.add-category-btn:hover{background:#f3f4f6;color:#555;}
+  .sidebar-item-top{display:flex;align-items:center;gap:7px;}
+  .sidebar-desc{font-size:11.5px;font-weight:500;color:#9aa3b2;letter-spacing:-.2px;}
+  .sidebar-item:hover{background:#f7f8fa;}
+  .sidebar-item.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent;}
+  .sidebar-item.active .sidebar-desc{color:var(--accent);opacity:.7;}
+  .sidebar-icon{font-size:16px;}
+  .sidebar-badge{background:#f59e0b;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;}
+  .sidebar-item.add-category-btn{
+    flex-direction:row;align-items:center;align-self:center;margin-left:auto;
+    border:2px dashed #ccc;border-radius:10px;color:#888;padding:8px 14px;font-size:13.5px;
+  }
+  .sidebar-item.add-category-btn:hover{background:#f3f4f6;color:#555;border-bottom-color:#ccc;}
   .sidebar-item.sidebar-draggable{cursor:grab;}
   .sidebar-item.sidebar-draggable:active{cursor:grabbing;}
   .sidebar-item.sidebar-dragging{opacity:.4;}
@@ -217,8 +228,11 @@
     .page-section{max-width:100%;}
     .handover-card{max-width:100%;box-sizing:border-box;}
     .calllog-table-wrap{max-width:100%;}
-    .sidebar{width:100%;flex-direction:row;position:static;overflow-x:auto;padding:10px;gap:8px;}
-    .sidebar-item{width:auto;flex:1;justify-content:center;white-space:nowrap;padding:10px 10px;font-size:14px;}
+    .sidebar{position:static;padding:0 4px;border-radius:14px;}
+    .sidebar-item{padding:10px 12px 9px;font-size:13.5px;}
+    .sidebar-desc{font-size:10.5px;}
+    .sidebar-icon{font-size:14px;}
+    .sidebar-item.add-category-btn{margin-left:8px;padding:7px 11px;font-size:12.5px;}
     .top-bar{min-height:80px;padding-right:70px;}
     .header-combo{height:70px;}
     .manual-header{flex-wrap:wrap;padding:12px 14px;gap:8px 10px;}
@@ -243,25 +257,40 @@
   <div class="app-layout">
     <div class="sidebar" id="sidebarNav">
       <button class="sidebar-item" data-page="checklist">
-        <span class="sidebar-icon">✅</span>
-        <span>업무분담 리스트</span>
+        <span class="sidebar-item-top">
+          <span class="sidebar-icon">✅</span>
+          <span class="cat-label">업무분담 리스트</span>
+        </span>
+        <span class="sidebar-desc">오늘의 담당 업무</span>
       </button>
       <button class="sidebar-item" data-page="handover">
-        <span class="sidebar-icon">📋</span>
-        <span>인수인계 사항</span>
-        <span class="sidebar-badge hidden" id="handoverSidebarBadge">0</span>
+        <span class="sidebar-item-top">
+          <span class="sidebar-icon">📋</span>
+          <span class="cat-label">인수인계 사항</span>
+          <span class="sidebar-badge hidden" id="handoverSidebarBadge">0</span>
+        </span>
+        <span class="sidebar-desc">공지 · 전달 사항</span>
       </button>
       <button class="sidebar-item" data-page="calllog">
-        <span class="sidebar-icon">📞</span>
-        <span>전화상담일지</span>
+        <span class="sidebar-item-top">
+          <span class="sidebar-icon">📞</span>
+          <span class="cat-label">전화상담일지</span>
+        </span>
+        <span class="sidebar-desc">상담 내역 기록</span>
       </button>
       <button class="sidebar-item" data-page="recall">
-        <span class="sidebar-icon">🔄</span>
-        <span>보류 고객 재콜백</span>
+        <span class="sidebar-item-top">
+          <span class="sidebar-icon">🔄</span>
+          <span class="cat-label">보류 고객 재콜백</span>
+        </span>
+        <span class="sidebar-desc">재연락 대상 관리</span>
       </button>
       <button class="sidebar-item" data-page="purchase">
-        <span class="sidebar-icon">🧾</span>
-        <span>구매 고객 등록란</span>
+        <span class="sidebar-item-top">
+          <span class="sidebar-icon">🧾</span>
+          <span class="cat-label">구매 고객 등록란</span>
+        </span>
+        <span class="sidebar-desc">구매 내역 기록</span>
       </button>
       <button class="sidebar-item add-category-btn hidden" id="addCategoryBtn">
         <span class="sidebar-icon">➕</span>
@@ -807,13 +836,20 @@ function renderSidebarCategories(){
       btn = document.createElement('button');
       btn.className = 'sidebar-item';
       btn.dataset.page = pageId;
+      const top = document.createElement('span');
+      top.className = 'sidebar-item-top';
       const icon = document.createElement('span');
       icon.className = 'sidebar-icon';
       icon.textContent = '📁';
       const label = document.createElement('span');
       label.className = 'cat-label';
-      btn.appendChild(icon);
-      btn.appendChild(label);
+      top.appendChild(icon);
+      top.appendChild(label);
+      const desc = document.createElement('span');
+      desc.className = 'sidebar-desc';
+      desc.textContent = '등록된 내용 보기';
+      btn.appendChild(top);
+      btn.appendChild(desc);
       bindSidebarButton(btn);
       sidebarNav.insertBefore(btn, addCategoryBtn);
     }
