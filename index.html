@@ -110,6 +110,9 @@
   .handover-header-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
   .handover-header-row .handover-title{margin-bottom:0;}
   .handover-title-count{background:#f59e0b;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:10px;}
+  .sheet-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .month-filter{font-family:inherit;font-size:13px;font-weight:600;color:#1e3c72;background:#eef2fa;border:1px solid #dde3f0;border-radius:8px;padding:8px 10px;cursor:pointer;}
+  .row-count{font-size:12.5px;font-weight:600;color:#8a93a5;}
   .handover-add-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
   .handover-add-row textarea{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;min-height:60px;resize:vertical;font-family:inherit;}
   .handover-add-row button{align-self:flex-end;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
@@ -341,7 +344,11 @@
         <div class="handover-card">
           <div class="handover-header-row">
             <div class="handover-title"><span>전화상담일지</span></div>
-            <button class="calllog-add-btn" id="callLogAddBtn">+ 상담 추가</button>
+            <div class="sheet-toolbar">
+              <select class="month-filter" id="callLogMonth"></select>
+              <span class="row-count" id="callLogCount"></span>
+              <button class="calllog-add-btn" id="callLogAddBtn">+ 상담 추가</button>
+            </div>
           </div>
           <div class="calllog-table-wrap">
             <table class="calllog-table">
@@ -373,7 +380,11 @@
         <div class="handover-card">
           <div class="handover-header-row">
             <div class="handover-title"><span>보류 고객 재콜백</span></div>
-            <button class="calllog-add-btn" data-sheet-add="recall">+ 고객 추가</button>
+            <div class="sheet-toolbar">
+              <select class="month-filter" data-sheet-month="recall"></select>
+              <span class="row-count" data-sheet-count="recall"></span>
+              <button class="calllog-add-btn" data-sheet-add="recall">+ 고객 추가</button>
+            </div>
           </div>
           <div class="calllog-table-wrap">
             <table class="calllog-table">
@@ -389,7 +400,11 @@
         <div class="handover-card">
           <div class="handover-header-row">
             <div class="handover-title"><span>구매 고객 등록란</span></div>
-            <button class="calllog-add-btn" data-sheet-add="purchase">+ 구매 고객 추가</button>
+            <div class="sheet-toolbar">
+              <select class="month-filter" data-sheet-month="purchase"></select>
+              <span class="row-count" data-sheet-count="purchase"></span>
+              <button class="calllog-add-btn" data-sheet-add="purchase">+ 구매 고객 추가</button>
+            </div>
           </div>
           <div class="calllog-table-wrap">
             <table class="calllog-table">
@@ -725,6 +740,8 @@ const addCategoryBtn = document.getElementById('addCategoryBtn');
 const callLogAddBtn = document.getElementById('callLogAddBtn');
 const callLogBody = document.getElementById('callLogBody');
 const callLogEmpty = document.getElementById('callLogEmpty');
+const callLogMonthSelect = document.getElementById('callLogMonth');
+const callLogCount = document.getElementById('callLogCount');
 const callLogModal = document.getElementById('callLogModal');
 const callLogModalTitle = document.getElementById('callLogModalTitle');
 const callLogModalCancel = document.getElementById('callLogModalCancel');
@@ -1273,9 +1290,80 @@ function todayISODate(){
   return d.getFullYear() + '-' + mm + '-' + dd;
 }
 
+/* ===== 월 단위 보기 (전화상담일지 / 보류 고객 재콜백 / 구매 고객 등록란 공통) ===== */
+const MONTH_ALL = '__all__';
+
+/* 한 행이 속한 달을 'YYYY-MM' 으로. 날짜 칸이 비었으면 등록 시각으로 대체 */
+function rowMonthKey(row, isoField){
+  const iso = row && row[isoField];
+  if(iso && /^\d{4}-\d{2}/.test(String(iso))) return String(iso).slice(0, 7);
+  const created = row && row.createdAt;
+  if(created && /^\d{4}-\d{2}/.test(String(created))) return String(created).slice(0, 7);
+  return '';
+}
+function monthLabel(key){
+  const parts = String(key).split('-');
+  if(parts.length < 2) return key;
+  return parts[0] + '년 ' + parseInt(parts[1], 10) + '월';
+}
+function currentMonthKey(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+/* 데이터에 실제로 존재하는 달 목록 (최신순) */
+function collectMonths(rows, isoField){
+  const seen = {};
+  rows.forEach(function(r){
+    const k = rowMonthKey(r, isoField);
+    if(k) seen[k] = true;
+  });
+  return Object.keys(seen).sort().reverse();
+}
+/* 선택 목록을 데이터에 맞춰 갱신하고, 실제로 적용할 선택값을 돌려줌 */
+function syncMonthSelect(selectEl, months, desired){
+  let value = desired;
+  /* 데이터가 아직 없을 때는 기본 선택(이번 달)을 그대로 유지한다.
+     여기서 '전체'로 바꿔버리면 나중에 데이터가 들어와도 이번 달 기본값이 사라짐 */
+  if(months.length && value !== MONTH_ALL && months.indexOf(value) === -1){
+    const cur = currentMonthKey();
+    value = (months.indexOf(cur) !== -1) ? cur : months[0];
+  }
+  const display = months.length ? value : MONTH_ALL;
+  const sig = months.join(',') + '|' + display;
+  if(selectEl.dataset.sig !== sig){
+    selectEl.dataset.sig = sig;
+    selectEl.innerHTML = '';
+    months.forEach(function(m){
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = monthLabel(m);
+      selectEl.appendChild(o);
+    });
+    const all = document.createElement('option');
+    all.value = MONTH_ALL;
+    all.textContent = '전체 기간';
+    selectEl.appendChild(all);
+    selectEl.value = display;
+  }
+  return value;
+}
+
+let callLogMonth = currentMonthKey();
+const sheetMonth = {};
+
 function renderCallLogs(){
-  const logs = getCallLogs();
+  const allLogs = getCallLogs();
+  const months = collectMonths(allLogs, 'dateISO');
+  callLogMonth = syncMonthSelect(callLogMonthSelect, months, callLogMonth);
+  const logs = (callLogMonth === MONTH_ALL)
+    ? allLogs
+    : allLogs.filter(function(l){ return rowMonthKey(l, 'dateISO') === callLogMonth; });
+
+  callLogCount.textContent = logs.length + '건';
   callLogBody.innerHTML = '';
+  callLogEmpty.textContent = (allLogs.length > 0 && callLogMonth !== MONTH_ALL)
+    ? '선택한 달에 등록된 상담 내역이 없습니다.'
+    : '등록된 상담 내역이 없습니다.';
   callLogEmpty.classList.toggle('hidden', logs.length > 0);
 
   logs.forEach(function(log){
@@ -1419,6 +1507,10 @@ function closeCallLogModal(){
 callLogAddBtn.addEventListener('click', function(){
   openCallLogModal(null);
 });
+callLogMonthSelect.addEventListener('change', function(){
+  callLogMonth = callLogMonthSelect.value;
+  renderCallLogs();
+});
 callLogModalCancel.addEventListener('click', function(){
   closeCallLogModal();
 });
@@ -1442,6 +1534,9 @@ callLogModalSave.addEventListener('click', function(){
     question: clQuestion.value.trim(),
     answer: clAnswer.value.trim()
   };
+
+  /* 저장한 내역이 다른 달이면 그 달로 자동 이동 (저장했는데 안 보이는 일 방지) */
+  callLogMonth = /^\d{4}-\d{2}/.test(data.dateISO || '') ? String(data.dateISO).slice(0, 7) : MONTH_ALL;
 
   if(callLogEditingId){
     const updated = getCallLogs().map(function(l){
@@ -1469,6 +1564,7 @@ const SHEET_DEFS = {
     addTitle: '보류 고객 추가',
     editTitle: '보류 고객 수정',
     deleteConfirm: '이 보류 고객 내역을 삭제할까요?',
+    emptyText: '등록된 보류 고객이 없습니다.',
     columns: [
       {key:'staff',   label:'담당자',       type:'staff',    tag:true},
       {key:'date',    label:'상담일',       type:'date'},
@@ -1489,6 +1585,7 @@ const SHEET_DEFS = {
     addTitle: '구매 고객 추가',
     editTitle: '구매 고객 수정',
     deleteConfirm: '이 구매 고객 내역을 삭제할까요?',
+    emptyText: '등록된 구매 고객이 없습니다.',
     columns: [
       {key:'staff',   label:'담당자',    type:'staff',  tag:true},
       {key:'date',    label:'구매일',    type:'date'},
@@ -1560,9 +1657,26 @@ function renderSheet(def){
     headRow.appendChild(document.createElement('th'));
   }
 
-  const rows = getSheetRows(def);
+  const allRows = getSheetRows(def);
+  const monthSel = document.querySelector('[data-sheet-month="' + def.id + '"]');
+  const countEl = document.querySelector('[data-sheet-count="' + def.id + '"]');
+  const months = collectMonths(allRows, 'date');
+  if(monthSel){
+    sheetMonth[def.id] = syncMonthSelect(monthSel, months, sheetMonth[def.id] || currentMonthKey());
+  }
+  const selMonth = sheetMonth[def.id];
+  const rows = (!selMonth || selMonth === MONTH_ALL)
+    ? allRows
+    : allRows.filter(function(r){ return rowMonthKey(r, 'date') === selMonth; });
+
+  if(countEl) countEl.textContent = rows.length + '건';
   body.innerHTML = '';
-  if(empty) empty.classList.toggle('hidden', rows.length > 0);
+  if(empty){
+    empty.textContent = (allRows.length > 0 && selMonth && selMonth !== MONTH_ALL)
+      ? '선택한 달에 등록된 내역이 없습니다.'
+      : def.emptyText;
+    empty.classList.toggle('hidden', rows.length > 0);
+  }
 
   rows.forEach(function(row){
     const tr = document.createElement('tr');
@@ -1692,6 +1806,9 @@ sheetModalSave.addEventListener('click', function(){
     data[col.key] = field ? String(field.value).trim() : '';
   });
 
+  /* 저장한 내역이 다른 달이면 그 달로 자동 이동 (저장했는데 안 보이는 일 방지) */
+  sheetMonth[def.id] = /^\d{4}-\d{2}/.test(data.date || '') ? String(data.date).slice(0, 7) : MONTH_ALL;
+
   const patch = {};
   if(sheetEditing.rowId){
     patch[def.stateKey] = getSheetRows(def).map(function(r){
@@ -1713,6 +1830,15 @@ document.querySelectorAll('[data-sheet-add]').forEach(function(btn){
   btn.addEventListener('click', function(){
     const def = SHEET_DEFS[btn.dataset.sheetAdd];
     if(def) openSheetModal(def, null);
+  });
+});
+
+document.querySelectorAll('[data-sheet-month]').forEach(function(sel){
+  sel.addEventListener('change', function(){
+    const def = SHEET_DEFS[sel.dataset.sheetMonth];
+    if(!def) return;
+    sheetMonth[def.id] = sel.value;
+    renderSheet(def);
   });
 });
 
