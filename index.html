@@ -193,6 +193,26 @@
   .handover-edit{background:#e0edff;color:#1d4ed8;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
   .handover-edit:hover{background:#cfe0ff;}
   .handover-edited-tag{background:#eef2fa;color:#6b7a94;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;}
+  /* 카드/행에서 바로 수정 */
+  .inline-edit{padding:12px 16px 14px;}
+  .inline-edit textarea{width:100%;box-sizing:border-box;font-family:inherit;font-size:13.5px;line-height:1.75;padding:11px 13px;border:2px solid var(--accent);border-radius:9px;resize:vertical;background:#fff;}
+  .inline-edit-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:9px;}
+  .inline-save{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;}
+  .inline-save:hover{opacity:.9;}
+  .inline-cancel{background:#eef0f5;color:#555;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;}
+  .inline-cancel:hover{background:#e2e5ec;}
+  .inline-hint{font-size:11.5px;color:#8a93a5;margin-top:7px;}
+  .handover-item.editing{padding-right:16px;background:#f3f7ff;border-left-color:#f59e0b;}
+  .manual-item.editing{border-left-color:#f59e0b;background:#f8faff;}
+  .row-edit-cell{background:#f3f7ff;padding:0 !important;}
+  .row-edit-box{padding:16px 18px;}
+  .row-edit-title{font-size:13.5px;font-weight:800;color:#1e3c72;margin-bottom:12px;}
+  .row-edit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 14px;}
+  .row-edit-grid label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:700;color:#41506b;}
+  .row-edit-grid label.wide{grid-column:1 / -1;}
+  .row-edit-grid input,.row-edit-grid select,.row-edit-grid textarea{font-family:inherit;font-size:13.5px;padding:8px 10px;border:1px solid #ccd2de;border-radius:7px;width:100%;box-sizing:border-box;background:#fff;}
+  .row-edit-grid textarea{resize:vertical;}
+  .calllog-table tbody tr.row-editing td{background:#eef2fa;}
   .handover-empty{color:#888;font-size:13px;text-align:center;padding:12px;grid-column:1/-1;}
 
   .manual-item{background:#fff;border-radius:12px;border:1px solid #e6eaf2;border-left:4px solid var(--accent);box-shadow:0 2px 10px rgba(30,60,114,.07);overflow:hidden;transition:box-shadow .2s;}
@@ -303,6 +323,9 @@
     .page-section{max-width:100%;}
     .handover-card{max-width:100%;box-sizing:border-box;}
     .calllog-table-wrap{max-width:100%;}
+    /* 표 안의 수정 폼은 가로 스크롤 없이 화면 안에서 한 줄씩 보이게 */
+    .row-edit-box{position:sticky;left:0;width:calc(100vw - 64px);box-sizing:border-box;padding:14px;}
+    .row-edit-grid{grid-template-columns:1fr;}
     .nav-card{position:static;border-radius:14px;}
     .sidebar{padding:0 4px;margin-top:8px;}
     .group-nav{padding:8px 8px 0;gap:5px;}
@@ -1106,6 +1129,8 @@ function updateSidebarDragUI(){
 }
 
 function renderCustomPages(){
+  /* 수정 중인 항목이 화면에 있으면 다시 그리지 않는다 */
+  if(manualEditKey && customPagesContainer.querySelector('[data-manual-edit="' + manualEditKey + '"]')) return;
   const categories = getCustomCategories();
   const existingPageIds = categories.map(function(c){ return 'cat_' + c.id; });
 
@@ -1177,8 +1202,42 @@ function renderCustomPages(){
         const noteKey = pageId + ':' + note.id;
         const isExpanded = hasBody && manualExpanded.has(noteKey);
 
+        const editingThis = manualEditKey === noteKey;
+
         const item = document.createElement('div');
-        item.className = 'manual-item' + (isDone ? ' done' : '') + (isExpanded ? ' expanded' : '');
+        item.className = 'manual-item' + (isDone ? ' done' : '') + (isExpanded ? ' expanded' : '') + (editingThis ? ' editing' : '');
+
+        if(editingThis){
+          item.dataset.manualEdit = noteKey;
+          const head = document.createElement('div');
+          head.className = 'manual-header';
+          const ht = document.createElement('div');
+          ht.className = 'manual-header-title';
+          ht.textContent = titleLine;
+          head.appendChild(ht);
+          item.appendChild(head);
+          item.appendChild(buildInlineTextEditor(
+            note.text,
+            '첫 줄이 제목이 되고, 그 아래 줄들은 펼쳤을 때 보이는 상세 내용입니다.',
+            function(val){
+              const trimmed = (val || '').trim();
+              if(!trimmed){ alert('내용을 입력해주세요.'); return; }
+              const cats = getCustomCategories().map(function(c){
+                if(c.id !== cat.id) return c;
+                const notesUpd = (Array.isArray(c.notes) ? c.notes : []).map(function(n){
+                  if(n.id !== note.id) return n;
+                  return Object.assign({}, n, {text: trimmed});
+                });
+                return Object.assign({}, c, {notes: notesUpd});
+              });
+              manualEditKey = null;
+              docRef.update({customCategories: cats});
+            },
+            function(){ manualEditKey = null; renderCustomPages(); }
+          ));
+          listEl.appendChild(item);
+          return;
+        }
 
         if(isAdmin){
           item.draggable = true;
@@ -1258,19 +1317,8 @@ function renderCustomPages(){
         editBtn.textContent = '수정';
         editBtn.addEventListener('click', function(e){
           e.stopPropagation();
-          openTextInputModal('내용 수정', note.text, 6, function(newText){
-            const trimmed = (newText || '').trim();
-            if(!trimmed) return;
-            const cats = getCustomCategories().map(function(c){
-              if(c.id !== cat.id) return c;
-              const notesUpd = (Array.isArray(c.notes) ? c.notes : []).map(function(n){
-                if(n.id !== note.id) return n;
-                return Object.assign({}, n, {text: trimmed});
-              });
-              return Object.assign({}, c, {notes: notesUpd});
-            });
-            docRef.update({customCategories: cats});
-          });
+          manualEditKey = noteKey;
+          renderCustomPages();
         });
         actions.appendChild(editBtn);
 
@@ -1322,7 +1370,136 @@ function renderCustomPages(){
   });
 }
 
+/* ===== 카드/행 안에서 바로 수정하기 (팝업 대신) ===== */
+const CALLLOG_FIELDS = [
+  {key:'staff',     label:'담당자',              type:'staff'},
+  {key:'dateISO',   label:'날짜',                type:'date'},
+  {key:'name',      label:'고객명',              type:'text'},
+  {key:'gender',    label:'성별',                type:'select', options: CL_GENDER_OPTIONS},
+  {key:'phone',     label:'연락처',              type:'phone',  placeholder:'010-0000-0000'},
+  {key:'channel',   label:'전화/매장',           type:'select', options: CL_CHANNEL_OPTIONS},
+  {key:'visitTime', label:'방문 시간',           type:'select', options: CL_VISIT_TIME_OPTIONS},
+  {key:'callback',  label:'콜백 여부',           type:'select', options: CL_CALLBACK_OPTIONS},
+  {key:'route',     label:'방문경로',            type:'select', options: CL_ROUTE_OPTIONS},
+  {key:'reward',    label:'보상판매안내',        type:'select', options: CL_REWARD_OPTIONS},
+  {key:'question',  label:'고객 질문(찾는 제품)', type:'text',   wide:true},
+  {key:'answer',    label:'답변 내용(상세)',      type:'textarea', wide:true}
+];
+
+function buildInlineField(f, value){
+  const label = document.createElement('label');
+  if(f.wide || f.type === 'textarea') label.className = 'wide';
+  label.appendChild(document.createTextNode(f.label));
+  let el;
+  if(f.type === 'select' || f.type === 'staff'){
+    el = document.createElement('select');
+    const opts = (f.type === 'staff') ? [''].concat(getEmployees()) : (f.options || []);
+    opts.forEach(function(o){
+      const op = document.createElement('option');
+      op.value = o;
+      op.textContent = o || '(선택 안 함)';
+      el.appendChild(op);
+    });
+  } else if(f.type === 'textarea'){
+    el = document.createElement('textarea');
+    el.rows = 3;
+  } else if(f.type === 'date'){
+    el = document.createElement('input');
+    el.type = 'date';
+  } else if(f.type === 'phone'){
+    el = document.createElement('input');
+    el.type = 'text';
+    if(f.placeholder) el.placeholder = f.placeholder;
+    attachPhoneFormat(el);
+  } else {
+    el = document.createElement('input');
+    el.type = 'text';
+    if(f.placeholder) el.placeholder = f.placeholder;
+  }
+  el.dataset.inlineField = f.key;
+  el.value = (f.type === 'phone') ? displayPhone(value) : (value || '');
+  label.appendChild(el);
+  return label;
+}
+
+function readInlineFields(container, fields){
+  const data = {};
+  fields.forEach(function(f){
+    const el = container.querySelector('[data-inline-field="' + f.key + '"]');
+    let v = el ? String(el.value).trim() : '';
+    if(f.type === 'phone' && v) v = formatPhoneKR(v) || v;
+    data[f.key] = v;
+  });
+  return data;
+}
+
+/* 표 안에서 펼쳐지는 수정 폼 */
+function buildInlineEditor(title, fields, row, onSave, onCancel){
+  const box = document.createElement('div');
+  box.className = 'row-edit-box';
+  const t = document.createElement('div');
+  t.className = 'row-edit-title';
+  t.textContent = title;
+  box.appendChild(t);
+  const grid = document.createElement('div');
+  grid.className = 'row-edit-grid';
+  fields.forEach(function(f){ grid.appendChild(buildInlineField(f, row[f.key])); });
+  box.appendChild(grid);
+  const acts = document.createElement('div');
+  acts.className = 'inline-edit-actions';
+  const cancel = document.createElement('button');
+  cancel.className = 'inline-cancel';
+  cancel.textContent = '취소';
+  cancel.addEventListener('click', onCancel);
+  const save = document.createElement('button');
+  save.className = 'inline-save';
+  save.textContent = '저장';
+  save.addEventListener('click', function(){ onSave(readInlineFields(grid, fields)); });
+  acts.appendChild(cancel);
+  acts.appendChild(save);
+  box.appendChild(acts);
+  return box;
+}
+
+/* 여러 줄 글(인수인계 / 업무 메뉴얼)을 그 자리에서 고치는 입력칸 */
+function buildInlineTextEditor(text, hint, onSave, onCancel){
+  const box = document.createElement('div');
+  box.className = 'inline-edit';
+  const ta = document.createElement('textarea');
+  ta.value = text || '';
+  ta.rows = Math.min(24, Math.max(5, String(text || '').split('\n').length + 1));
+  box.appendChild(ta);
+  if(hint){
+    const h = document.createElement('div');
+    h.className = 'inline-hint';
+    h.textContent = hint;
+    box.appendChild(h);
+  }
+  const acts = document.createElement('div');
+  acts.className = 'inline-edit-actions';
+  const cancel = document.createElement('button');
+  cancel.className = 'inline-cancel';
+  cancel.textContent = '취소';
+  cancel.addEventListener('click', onCancel);
+  const save = document.createElement('button');
+  save.className = 'inline-save';
+  save.textContent = '저장';
+  save.addEventListener('click', function(){ onSave(ta.value); });
+  acts.appendChild(cancel);
+  acts.appendChild(save);
+  box.appendChild(acts);
+  setTimeout(function(){ try { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } catch(e){} }, 0);
+  return box;
+}
+
+let handoverEditId = null;
+let manualEditKey = null;
+let callLogEditRowId = null;
+const sheetEditRowId = {};
+
 function renderHandoverNotes(){
+  /* 수정 중인 카드가 화면에 있으면 다시 그리지 않는다 (입력하던 내용이 날아가지 않게) */
+  if(handoverEditId && handoverList.querySelector('[data-ho-edit="' + handoverEditId + '"]')) return;
   handoverList.innerHTML = '';
   const notes = getHandoverNotes();
 
@@ -1356,14 +1533,44 @@ function renderHandoverNotes(){
     return lines.map(function(){ return !!n.done; });
   }
 
+  function saveHandoverEdit(noteId, val){
+    const blocks = splitHandoverBlocks(val);
+    if(blocks.length === 0){
+      alert('인수인계 내용을 입력해주세요.');
+      return false;
+    }
+    const updated = getHandoverNotes().map(function(n){
+      if(n.id !== noteId) return n;
+      const oldLines = splitHandoverBlocks(n.text);
+      const oldDone = computeLineDone(n, oldLines);
+      /* 내용이 그대로인 항목은 체크 상태를 유지하고, 바뀌거나 새로 생긴 항목만 체크 해제 */
+      const used = {};
+      const newDone = blocks.map(function(b){
+        for(let i = 0; i < oldLines.length; i++){
+          if(!used[i] && oldLines[i] === b){ used[i] = true; return !!oldDone[i]; }
+        }
+        return false;
+      });
+      const copy = Object.assign({}, n);
+      copy.text = blocks.join('\n\n');
+      copy.lineDone = newDone;
+      copy.done = newDone.length > 0 && newDone.every(function(d){ return d; });
+      copy.editedAt = new Date().toISOString();
+      return copy;
+    });
+    docRef.update({handoverNotes: updated});
+    return true;
+  }
+
   notes.forEach(function(note){
     const isNew = handoverSessionLastSeen && note.createdAt > handoverSessionLastSeen;
     const lines = splitHandoverBlocks(note.text);
     const lineDone = computeLineDone(note, lines);
     const isDone = lines.length > 0 && lineDone.every(function(d){ return d; });
+    const editingThis = handoverEditId === note.id;
 
     const item = document.createElement('div');
-    item.className = 'handover-item' + (isNew ? ' new' : '') + (isDone ? ' done' : '');
+    item.className = 'handover-item' + (isNew ? ' new' : '') + (isDone ? ' done' : '') + (editingThis ? ' editing' : '');
 
     const meta = document.createElement('div');
     meta.className = 'handover-meta';
@@ -1381,6 +1588,27 @@ function renderHandoverNotes(){
       edTag.className = 'handover-edited-tag';
       edTag.textContent = '수정됨 ' + formatHandoverTime(note.editedAt);
       meta.appendChild(edTag);
+    }
+
+    if(editingThis){
+      item.dataset.hoEdit = note.id;
+      item.appendChild(meta);
+      item.appendChild(buildInlineTextEditor(
+        note.text,
+        '빈 줄로 나누면 항목이 나뉘고, 이어 쓴 줄은 같은 항목으로 묶입니다.',
+        function(val){
+          /* 저장 전에 편집 상태를 먼저 풀어야 갱신된 화면이 정상으로 다시 그려진다 */
+          if(splitHandoverBlocks(val).length === 0){
+            alert('인수인계 내용을 입력해주세요.');
+            return;
+          }
+          handoverEditId = null;
+          saveHandoverEdit(note.id, val);
+        },
+        function(){ handoverEditId = null; renderHandoverNotes(); }
+      ));
+      handoverList.appendChild(item);
+      return;
     }
 
     const linesWrap = document.createElement('div');
@@ -1423,33 +1651,8 @@ function renderHandoverNotes(){
     editBtn.className = 'handover-edit';
     editBtn.textContent = '수정';
     editBtn.addEventListener('click', function(){
-      openTextInputModal('인수인계 사항 수정', note.text, 10, function(val){
-        const blocks = splitHandoverBlocks(val);
-        if(blocks.length === 0){
-          alert('인수인계 내용을 입력해주세요.');
-          return;
-        }
-        const updated = getHandoverNotes().map(function(n){
-          if(n.id !== note.id) return n;
-          const oldLines = splitHandoverBlocks(n.text);
-          const oldDone = computeLineDone(n, oldLines);
-          /* 내용이 그대로인 항목은 체크 상태를 유지하고, 바뀌거나 새로 생긴 항목만 체크 해제 */
-          const used = {};
-          const newDone = blocks.map(function(b){
-            for(let i = 0; i < oldLines.length; i++){
-              if(!used[i] && oldLines[i] === b){ used[i] = true; return !!oldDone[i]; }
-            }
-            return false;
-          });
-          const copy = Object.assign({}, n);
-          copy.text = blocks.join('\n\n');
-          copy.lineDone = newDone;
-          copy.done = newDone.length > 0 && newDone.every(function(d){ return d; });
-          copy.editedAt = new Date().toISOString();
-          return copy;
-        });
-        docRef.update({handoverNotes: updated});
-      });
+      handoverEditId = note.id;
+      renderHandoverNotes();
     });
 
     const delBtn = document.createElement('button');
@@ -1638,6 +1841,8 @@ let callLogMonth = currentMonthKey();
 const sheetMonth = {};
 
 function renderCallLogs(){
+  /* 수정 중인 행이 화면에 있으면 다시 그리지 않는다 */
+  if(callLogEditRowId && callLogBody.querySelector('[data-row-edit="' + callLogEditRowId + '"]')) return;
   const allLogs = getCallLogs();
   const months = collectMonths(allLogs, 'dateISO');
   callLogMonth = syncMonthSelect(callLogMonthSelect, months, callLogMonth);
@@ -1653,6 +1858,35 @@ function renderCallLogs(){
   callLogEmpty.classList.toggle('hidden', logs.length > 0);
 
   logs.forEach(function(log){
+    if(callLogEditRowId === log.id){
+      const editTr = document.createElement('tr');
+      editTr.dataset.rowEdit = log.id;
+      const td = document.createElement('td');
+      td.className = 'row-edit-cell';
+      td.colSpan = CALLLOG_FIELDS.length + 2;
+      td.appendChild(buildInlineEditor('상담 내역 수정', CALLLOG_FIELDS, log,
+        function(data){
+          let dateCompact = todayCompact();
+          if(data.dateISO){
+            const parts = data.dateISO.split('-');
+            if(parts.length === 3) dateCompact = parseInt(parts[1], 10) + '/' + parseInt(parts[2], 10);
+          }
+          const payload = Object.assign({}, data, {date: dateCompact});
+          const updated = getCallLogs().map(function(l){
+            if(l.id !== log.id) return l;
+            return Object.assign({}, l, payload);
+          });
+          callLogEditRowId = null;
+          if(/^\d{4}-\d{2}/.test(data.dateISO || '')) callLogMonth = String(data.dateISO).slice(0, 7);
+          docRef.update({callLogs: updated});
+        },
+        function(){ callLogEditRowId = null; renderCallLogs(); }
+      ));
+      editTr.appendChild(td);
+      callLogBody.appendChild(editTr);
+      return;
+    }
+
     const tr = document.createElement('tr');
     tr.className = log.checked ? 'cl-done' : '';
 
@@ -1730,7 +1964,8 @@ function renderCallLogs(){
     editBtn.className = 'cl-row-btn';
     editBtn.textContent = '수정';
     editBtn.addEventListener('click', function(){
-      openCallLogModal(log);
+      callLogEditRowId = log.id;
+      renderCallLogs();
     });
     const delBtn = document.createElement('button');
     delBtn.className = 'cl-row-btn cl-del';
@@ -1932,6 +2167,11 @@ const sheetModalSave = document.getElementById('sheetModalSave');
 let sheetEditing = null; /* {defId, rowId|null} */
 
 function renderSheet(def){
+  /* 수정 중인 행이 화면에 있으면 다시 그리지 않는다 */
+  if(sheetEditRowId[def.id]){
+    const open = document.querySelector('[data-sheet-body="' + def.id + '"] [data-row-edit="' + sheetEditRowId[def.id] + '"]');
+    if(open) return;
+  }
   const headRow = document.querySelector('[data-sheet-head="' + def.id + '"]');
   const body = document.querySelector('[data-sheet-body="' + def.id + '"]');
   const empty = document.querySelector('[data-sheet-empty="' + def.id + '"]');
@@ -1972,6 +2212,31 @@ function renderSheet(def){
   }
 
   rows.forEach(function(row){
+    if(sheetEditRowId[def.id] === row.id){
+      const editTr = document.createElement('tr');
+      editTr.dataset.rowEdit = row.id;
+      const td = document.createElement('td');
+      td.className = 'row-edit-cell';
+      td.colSpan = def.columns.length + 2;
+      td.appendChild(buildInlineEditor(def.editTitle, def.columns, row,
+        function(data){
+          const updated = getSheetRows(def).map(function(r){
+            if(r.id !== row.id) return r;
+            return Object.assign({}, r, data);
+          });
+          sheetEditRowId[def.id] = null;
+          if(/^\d{4}-\d{2}/.test(data.date || '')) sheetMonth[def.id] = String(data.date).slice(0, 7);
+          const patch = {};
+          patch[def.stateKey] = updated;
+          docRef.update(patch);
+        },
+        function(){ sheetEditRowId[def.id] = null; renderSheet(def); }
+      ));
+      editTr.appendChild(td);
+      body.appendChild(editTr);
+      return;
+    }
+
     const tr = document.createElement('tr');
     tr.className = row.checked ? 'cl-done' : '';
 
@@ -2014,7 +2279,10 @@ function renderSheet(def){
     const editBtn = document.createElement('button');
     editBtn.className = 'cl-row-btn';
     editBtn.textContent = '수정';
-    editBtn.addEventListener('click', function(){ openSheetModal(def, row); });
+    editBtn.addEventListener('click', function(){
+      sheetEditRowId[def.id] = row.id;
+      renderSheet(def);
+    });
     const delBtn = document.createElement('button');
     delBtn.className = 'cl-row-btn cl-del';
     delBtn.textContent = '삭제';
