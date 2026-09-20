@@ -73,7 +73,7 @@
   .modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:320px;text-align:center;}
   .modal input{width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin:14px 0;font-size:14px;}
   .modal textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #ccc;margin:14px 0;font-size:14px;font-family:inherit;resize:vertical;min-height:44px;text-align:left;}
-  .text-input-modal{max-width:440px;}
+  .text-input-modal{max-width:660px;}
   .add-item-role-choice{display:flex;flex-direction:column;gap:8px;text-align:left;margin:4px 0 14px;}
   .add-item-role-option{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e6eaf2;border-radius:8px;cursor:pointer;font-size:14px;color:#333;}
   .add-item-role-option:has(input:checked){border-color:var(--accent);background:#eef2ff;}
@@ -173,7 +173,7 @@
   .handover-add-row textarea{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;min-height:60px;resize:vertical;font-family:inherit;}
   .handover-add-row button{align-self:flex-end;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;}
   .handover-list{display:flex;flex-direction:column;gap:14px;}
-  .handover-item{background:#f8f9fc;border-radius:10px;padding:14px 46px 14px 16px;border-left:4px solid var(--accent);position:relative;box-shadow:0 4px 12px rgba(0,0,0,.08);transition:transform .2s,box-shadow .2s;}
+  .handover-item{background:#f8f9fc;border-radius:10px;padding:14px 104px 14px 16px;border-left:4px solid var(--accent);position:relative;box-shadow:0 4px 12px rgba(0,0,0,.08);transition:transform .2s,box-shadow .2s;}
   .handover-item:hover{transform:translateY(-3px);box-shadow:0 10px 20px rgba(0,0,0,.12);}
   .handover-item.new{border-left-color:#f59e0b;background:#fffbeb;}
   .handover-item.done{border-left-color:#22c55e;background:#f3f4f6;}
@@ -188,7 +188,11 @@
   .handover-line input[type=checkbox]{width:18px;height:18px;cursor:pointer;flex-shrink:0;margin-top:1px;}
   .handover-line-text{font-size:14px;color:#222;white-space:pre-wrap;word-break:break-word;flex:1;}
   .handover-line.done .handover-line-text{text-decoration:line-through;color:#999;}
-  .handover-del{position:absolute;top:10px;right:10px;background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
+  .handover-actions{position:absolute;top:10px;right:10px;display:flex;gap:5px;}
+  .handover-del{background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
+  .handover-edit{background:#e0edff;color:#1d4ed8;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;}
+  .handover-edit:hover{background:#cfe0ff;}
+  .handover-edited-tag{background:#eef2fa;color:#6b7a94;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;}
   .handover-empty{color:#888;font-size:13px;text-align:center;padding:12px;grid-column:1/-1;}
 
   .manual-item{background:#fff;border-radius:12px;border:1px solid #e6eaf2;border-left:4px solid var(--accent);box-shadow:0 2px 10px rgba(30,60,114,.07);overflow:hidden;transition:box-shadow .2s;}
@@ -1372,6 +1376,12 @@ function renderHandoverNotes(){
       newTag.textContent = 'NEW';
       meta.appendChild(newTag);
     }
+    if(note.editedAt){
+      const edTag = document.createElement('span');
+      edTag.className = 'handover-edited-tag';
+      edTag.textContent = '수정됨 ' + formatHandoverTime(note.editedAt);
+      meta.appendChild(edTag);
+    }
 
     const linesWrap = document.createElement('div');
     linesWrap.className = 'handover-lines';
@@ -1406,6 +1416,42 @@ function renderHandoverNotes(){
       linesWrap.appendChild(lineRow);
     });
 
+    const actions = document.createElement('div');
+    actions.className = 'handover-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'handover-edit';
+    editBtn.textContent = '수정';
+    editBtn.addEventListener('click', function(){
+      openTextInputModal('인수인계 사항 수정', note.text, 10, function(val){
+        const blocks = splitHandoverBlocks(val);
+        if(blocks.length === 0){
+          alert('인수인계 내용을 입력해주세요.');
+          return;
+        }
+        const updated = getHandoverNotes().map(function(n){
+          if(n.id !== note.id) return n;
+          const oldLines = splitHandoverBlocks(n.text);
+          const oldDone = computeLineDone(n, oldLines);
+          /* 내용이 그대로인 항목은 체크 상태를 유지하고, 바뀌거나 새로 생긴 항목만 체크 해제 */
+          const used = {};
+          const newDone = blocks.map(function(b){
+            for(let i = 0; i < oldLines.length; i++){
+              if(!used[i] && oldLines[i] === b){ used[i] = true; return !!oldDone[i]; }
+            }
+            return false;
+          });
+          const copy = Object.assign({}, n);
+          copy.text = blocks.join('\n\n');
+          copy.lineDone = newDone;
+          copy.done = newDone.length > 0 && newDone.every(function(d){ return d; });
+          copy.editedAt = new Date().toISOString();
+          return copy;
+        });
+        docRef.update({handoverNotes: updated});
+      });
+    });
+
     const delBtn = document.createElement('button');
     delBtn.className = 'handover-del';
     delBtn.textContent = '삭제';
@@ -1415,9 +1461,12 @@ function renderHandoverNotes(){
       docRef.update({handoverNotes: remaining});
     });
 
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
     item.appendChild(meta);
     item.appendChild(linesWrap);
-    item.appendChild(delBtn);
+    item.appendChild(actions);
     handoverList.appendChild(item);
   });
 }
