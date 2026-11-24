@@ -346,13 +346,13 @@
   }
 
   /* 메뉴얼 사진 */
-  .manual-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:10px;}
-  .manual-photos img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid #e6eaf2;cursor:zoom-in;background:#f1f4fa;}
+  .manual-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:10px;align-items:start;}
+  .manual-photos img{width:100%;height:auto;max-height:380px;object-fit:contain;border-radius:10px;border:1px solid #e6eaf2;cursor:zoom-in;background:#f1f4fa;display:block;}
   .photo-edit{margin-top:10px;padding:10px;border:1px dashed #c5cde0;border-radius:10px;background:#fafbff;}
   .photo-edit-title{font-size:13px;font-weight:700;color:#1e3c72;margin-bottom:8px;}
-  .photo-edit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:8px;}
+  .photo-edit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:8px;}
   .photo-thumb{position:relative;}
-  .photo-thumb img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid #e6eaf2;background:#f1f4fa;}
+  .photo-thumb img{width:100%;aspect-ratio:4/3;object-fit:contain;border-radius:8px;border:1px solid #e6eaf2;background:#f1f4fa;display:block;}
   .photo-thumb button{position:absolute;top:3px;right:3px;width:22px;height:22px;border:none;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;font-size:13px;line-height:22px;padding:0;cursor:pointer;}
   .photo-add-btn{padding:7px 14px;border:1px solid #1e3c72;border-radius:8px;background:#fff;color:#1e3c72;font-weight:700;font-size:13px;cursor:pointer;}
   .photo-add-btn:disabled{opacity:.5;cursor:default;}
@@ -1548,7 +1548,8 @@ function compressImage(file, maxSide, quality){
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
         let q = quality, out = cv.toDataURL('image/jpeg', q);
-        while(out.length > 700000 && q > 0.35){ q -= 0.1; out = cv.toDataURL('image/jpeg', q); }
+        while(out.length > 900000 && q > 0.5){ q -= 0.05; out = cv.toDataURL('image/jpeg', q); }
+        while(out.length > 900000 && w > 800){ w = Math.round(w * 0.85); h = Math.round(h * 0.85); cv.width = w; cv.height = h; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h); out = cv.toDataURL('image/jpeg', 0.7); }
         resolve(out);
       };
       img.src = fr.result;
@@ -1700,7 +1701,7 @@ function buildPhotoEditor(catId, note){
     for(let i = 0; i < files.length; i++){
       status.textContent = '올리는 중... (' + (i + 1) + '/' + files.length + ')';
       try{
-        const data = await compressImage(files[i], 1100, 0.75);
+        const data = await compressImage(files[i], 1800, 0.88);
         const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         await photoDocRef(id).set({data: data, createdAt: new Date().toISOString()});
         photoCache[id] = data;
