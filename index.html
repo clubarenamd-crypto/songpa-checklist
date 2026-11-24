@@ -359,7 +359,14 @@
   .photo-status{margin-left:8px;font-size:12px;color:#6b7690;}
   #photoLightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out;}
   #photoLightbox.hidden{display:none;}
-  #photoLightbox img{max-width:100%;max-height:100%;border-radius:8px;}
+  #photoLightbox img{max-width:calc(100% - 120px);max-height:100%;border-radius:8px;cursor:pointer;user-select:none;}
+  .lb-btn{position:absolute;border:none;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;border-radius:50%;width:48px;height:48px;font-size:30px;line-height:46px;padding:0;}
+  .lb-btn:hover{background:rgba(255,255,255,.3);}
+  .lb-prev{left:12px;top:50%;transform:translateY(-50%);}
+  .lb-next{right:12px;top:50%;transform:translateY(-50%);}
+  .lb-close{top:12px;right:12px;width:40px;height:40px;font-size:18px;line-height:38px;}
+  .lb-count{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);color:#fff;font-size:14px;background:rgba(0,0,0,.5);padding:4px 12px;border-radius:14px;}
+  @media (max-width:600px){#photoLightbox img{max-width:100%;} .lb-btn{width:40px;height:40px;font-size:26px;line-height:38px;}}
 </style>
 </head>
 <body>
@@ -1549,18 +1556,68 @@ function compressImage(file, maxSide, quality){
     fr.readAsDataURL(file);
   });
 }
-function openPhotoLightbox(src){
+let _lbIds = [], _lbIdx = 0, _lbTouchX = null;
+function lbShow(){
+  const lb = document.getElementById('photoLightbox');
+  if(!lb) return;
+  const img = lb.querySelector('img');
+  const id = _lbIds[_lbIdx];
+  img.removeAttribute('src');
+  loadPhoto(id).then(function(url){ if(_lbIds[_lbIdx] === id && url) img.src = url; }).catch(function(){});
+  lb.querySelector('.lb-count').textContent = (_lbIdx + 1) + ' / ' + _lbIds.length;
+  const multi = _lbIds.length > 1;
+  lb.querySelector('.lb-prev').style.display = multi ? '' : 'none';
+  lb.querySelector('.lb-next').style.display = multi ? '' : 'none';
+  lb.querySelector('.lb-count').style.display = multi ? '' : 'none';
+}
+function lbMove(d){
+  if(_lbIds.length < 2) return;
+  _lbIdx = (_lbIdx + d + _lbIds.length) % _lbIds.length;
+  lbShow();
+}
+function lbClose(){
+  const lb = document.getElementById('photoLightbox');
+  if(lb) lb.classList.add('hidden');
+}
+function openPhotoLightbox(ids, idx){
   let lb = document.getElementById('photoLightbox');
   if(!lb){
     lb = document.createElement('div');
     lb.id = 'photoLightbox';
     lb.className = 'hidden';
-    lb.innerHTML = '<img alt="">';
-    lb.addEventListener('click', function(){ lb.classList.add('hidden'); });
+    lb.innerHTML = '<button class="lb-btn lb-close" title="닫기">✕</button>' +
+      '<button class="lb-btn lb-prev" title="이전 (←)">‹</button>' +
+      '<img alt="">' +
+      '<button class="lb-btn lb-next" title="다음 (→)">›</button>' +
+      '<div class="lb-count"></div>';
+    lb.addEventListener('click', function(e){
+      if(e.target.closest('.lb-btn')) return;
+      if(e.target.tagName === 'IMG'){ lbMove(1); return; }
+      lbClose();
+    });
+    lb.querySelector('.lb-close').addEventListener('click', lbClose);
+    lb.querySelector('.lb-prev').addEventListener('click', function(){ lbMove(-1); });
+    lb.querySelector('.lb-next').addEventListener('click', function(){ lbMove(1); });
+    lb.addEventListener('touchstart', function(e){ _lbTouchX = e.touches[0].clientX; }, {passive:true});
+    lb.addEventListener('touchend', function(e){
+      if(_lbTouchX == null) return;
+      const dx = e.changedTouches[0].clientX - _lbTouchX;
+      _lbTouchX = null;
+      if(Math.abs(dx) > 50){ lbMove(dx < 0 ? 1 : -1); e.preventDefault(); }
+    });
+    document.addEventListener('keydown', function(e){
+      const box = document.getElementById('photoLightbox');
+      if(!box || box.classList.contains('hidden')) return;
+      if(e.key === 'ArrowRight'){ lbMove(1); e.preventDefault(); }
+      else if(e.key === 'ArrowLeft'){ lbMove(-1); e.preventDefault(); }
+      else if(e.key === 'Escape'){ lbClose(); }
+    });
     document.body.appendChild(lb);
   }
-  lb.querySelector('img').src = src;
+  _lbIds = ids.slice();
+  _lbIdx = Math.max(0, Math.min(idx || 0, _lbIds.length - 1));
   lb.classList.remove('hidden');
+  lbShow();
 }
 function fillPhotoImg(img, id){
   img.alt = '메뉴얼 사진';
@@ -1569,11 +1626,11 @@ function fillPhotoImg(img, id){
 function buildPhotoGrid(ids){
   const grid = document.createElement('div');
   grid.className = 'manual-photos';
-  ids.forEach(function(id){
+  ids.forEach(function(id, idx){
     const img = document.createElement('img');
     img.loading = 'lazy';
     fillPhotoImg(img, id);
-    img.addEventListener('click', function(e){ e.stopPropagation(); if(img.src) openPhotoLightbox(img.src); });
+    img.addEventListener('click', function(e){ e.stopPropagation(); openPhotoLightbox(ids, idx); });
     grid.appendChild(img);
   });
   return grid;
