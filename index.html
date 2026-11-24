@@ -387,6 +387,9 @@
       <button class="group-item" data-group="customer">
         <span class="group-icon">👥</span><span>고객 관리</span>
       </button>
+      <button class="group-item" data-group="brand">
+        <span class="group-icon">📢</span><span>브랜드 공지사항</span>
+      </button>
     </div>
     <div class="sidebar" id="sidebarNav">
       <button class="sidebar-item" data-page="checklist">
@@ -979,9 +982,19 @@ function getCustomCategories(){
 const groupNav = document.getElementById('groupNav');
 const PAGE_GROUP_OVERRIDE = {customer: 'customer', calllog: 'customer', recall: 'customer', purchase: 'customer'};
 /* 지정되지 않은 메뉴(사용자가 추가한 카테고리 포함)는 매장 업무로 */
-function pageGroup(pageId){ return PAGE_GROUP_OVERRIDE[pageId] || 'store'; }
+function pageGroup(pageId){
+  if(PAGE_GROUP_OVERRIDE[pageId]) return PAGE_GROUP_OVERRIDE[pageId];
+  if(typeof pageId === 'string' && pageId.indexOf('cat_') === 0 && typeof getCustomCategories === 'function'){
+    const cid = pageId.slice(4);
+    const cats = getCustomCategories();
+    for(let i = 0; i < cats.length; i++){
+      if(cats[i].id === cid) return cats[i].group === 'brand' ? 'brand' : 'store';
+    }
+  }
+  return 'store';
+}
 let currentGroup = 'store';
-const lastPageOfGroup = {store: 'checklist', customer: 'customer'};
+const lastPageOfGroup = {store: 'checklist', customer: 'customer', brand: null};
 
 function firstPageInGroup(g){
   const btns = Array.prototype.slice.call(sidebarNav.querySelectorAll('.sidebar-item[data-page]'));
@@ -999,8 +1012,8 @@ function updateGroupUI(){
   sidebarNav.querySelectorAll('.sidebar-item[data-page]').forEach(function(btn){
     btn.classList.toggle('hidden', pageGroup(btn.dataset.page) !== currentGroup);
   });
-  /* 카테고리 추가는 매장 업무 그룹에서만 */
-  addCategoryBtn.classList.toggle('hidden', !isAdmin || currentGroup !== 'store');
+  /* 카테고리 추가는 매장 업무·브랜드 공지사항 그룹에서만 */
+  addCategoryBtn.classList.toggle('hidden', !isAdmin || currentGroup === 'customer');
 }
 
 function showGroup(g){
@@ -1037,6 +1050,7 @@ addCategoryBtn.addEventListener('click', function(){
     const trimmed = (name || '').trim();
     if(!trimmed) return;
     const newCat = {id: 'cat_' + Date.now(), name: trimmed, notes: []};
+    if(currentGroup === 'brand') newCat.group = 'brand';
     const categories = getCustomCategories().concat([newCat]);
     docRef.update({customCategories: categories}).then(function(){
       showPage('cat_' + newCat.id);
@@ -1069,7 +1083,7 @@ function renderSidebarCategories(){
       top.className = 'sidebar-item-top';
       const icon = document.createElement('span');
       icon.className = 'sidebar-icon';
-      icon.textContent = '📁';
+      icon.textContent = (cat.group === 'brand') ? '📢' : '📁';
       const label = document.createElement('span');
       label.className = 'cat-label';
       top.appendChild(icon);
@@ -1316,7 +1330,7 @@ function renderCustomPages(){
         const actions = document.createElement('div');
         actions.className = 'manual-actions';
 
-        if(cat.id !== 'manual'){
+        if(cat.id !== 'manual' && cat.group !== 'brand'){
           const cb = document.createElement('input');
           cb.type = 'checkbox';
           cb.className = 'manual-check';
@@ -2954,7 +2968,7 @@ function updateAdminUI(){
   addItemBtn.classList.toggle('hidden', !isAdmin);
   manageEmployeesBtn.classList.toggle('hidden', !isAdmin);
   changePwBtn.classList.toggle('hidden', !isAdmin);
-  addCategoryBtn.classList.toggle('hidden', !isAdmin || currentGroup !== 'store');
+  addCategoryBtn.classList.toggle('hidden', !isAdmin || currentGroup === 'customer');
   render();
 }
 
@@ -3249,8 +3263,9 @@ function ensureDoc(){
         callLogs: [],
         recallRows: [],
         purchaseRows: [],
-        customCategories: buildManualSeedCategories(),
-        manualSeeded: true
+        customCategories: buildManualSeedCategories().concat([{id: 'brand_notice', name: '브랜드 공지사항', group: 'brand', notes: []}]),
+        manualSeeded: true,
+        brandSeeded: true
       });
     }
     const data = snap.data();
@@ -3265,6 +3280,12 @@ function ensureDoc(){
     if((!Array.isArray(data.customCategories) || data.customCategories.length === 0) && !data.manualSeeded){
       patch.customCategories = buildManualSeedCategories();
       patch.manualSeeded = true;
+    }
+    if(!data.brandSeeded){
+      const baseCats = (patch.customCategories || data.customCategories || []);
+      const hasBrand = baseCats.some(function(c){ return c.id === 'brand_notice'; });
+      patch.customCategories = hasBrand ? baseCats : baseCats.concat([{id: 'brand_notice', name: '브랜드 공지사항', group: 'brand', notes: []}]);
+      patch.brandSeeded = true;
     }
     if(Array.isArray(data.items)){
       const migration = migrateTwoPersonFields(data.items);
